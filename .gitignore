@@ -1,0 +1,11 @@
+# Entorno virtual y Python
+backend/.venv/
+backend/__pycache__/
+*.pyc
+
+# Node y Vite
+frontend/node_modules/
+frontend/dist/
+
+# Variables de entorno
+.env
