@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+import backend.models as models
 
 app = FastAPI(
     title="Motor de Suscripciones y Alertas",
