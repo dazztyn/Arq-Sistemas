@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
-import models 
+import models # noqa: F401
 from database import init_db
 from conversion import router as conversion_router
 
