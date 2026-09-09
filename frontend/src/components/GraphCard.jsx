@@ -26,7 +26,7 @@ function GraphCard({subscriptions}) {
   ];
 
   return (
-    <div className="rounded-2xl bg-secundario/50 p-5 shadow-lg">
+    <div className="rounded-2xl bg-secundario/20 p-5 shadow-lg">
       <div className="mb-5 flex items-center justify-between">
         <h3 className="text-lg font-semibold text-texto">
           Distribución por categorías
