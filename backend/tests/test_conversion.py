@@ -4,7 +4,7 @@ from main import app  # Importamos tu aplicación real
 # Creamos un "cliente falso" para hacer peticiones a tu API
 client = TestClient(app)
 
-def test_conversion_exitosa():
+def test_conversion_exitosa(client):
     # Simulamos que el frontend pide convertir 100 USD a CLP
     response = client.get("/api/conversion/?monto=100&origen=USD&destino=CLP")
     
