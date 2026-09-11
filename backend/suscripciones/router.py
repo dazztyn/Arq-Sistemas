@@ -31,5 +31,5 @@ async def registrar_suscripcion(suscripcion: SuscripcionRegistro, session: Async
             "suscripcion_id": nueva_sub.id,
             "servicio": nueva_sub.nombre_servicio
         }
-    except Exception as e:
+    except Exception:
         raise HTTPException(status_code=400, detail="Error al crear suscripción. Verifique que el usuario exista.")
