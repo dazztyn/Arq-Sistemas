@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 import models # noqa: F401
 from database import init_db
 from conversion import router as conversion_router
+from usuarios import router as usuarios_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -20,6 +21,7 @@ app = FastAPI(
 
 # conexion de modulo de conversion
 app.include_router(conversion_router.router)
+app.include_router(usuarios_router.router)
 
 @app.get("/")
 async def health_check():

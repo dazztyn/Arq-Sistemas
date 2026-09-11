@@ -7,6 +7,7 @@ class Usuario(SQLModel, table=True):
     nombre: str
     email: str = Field(unique=True, index=True)
     contrasena_hash: str
+    rol: str = Field(default="usuario")
     
     # Un usuario puede tener muchas suscripciones
     suscripciones: List["Suscripcion"] = Relationship(back_populates="usuario")
