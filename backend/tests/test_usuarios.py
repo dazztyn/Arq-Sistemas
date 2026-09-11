@@ -4,7 +4,7 @@ from main import app
 
 client = TestClient(app)
 
-def test_registro_usuario_nuevo():
+def test_registro_usuario_nuevo(client):
     email_unico = f"test_{int(time.time())}@institucion.cl"
     payload = {
         "nombre": "Usuario Automatizado",
@@ -16,14 +16,13 @@ def test_registro_usuario_nuevo():
     assert response.status_code == 200
     assert response.json()["email"] == email_unico
 
-def test_registro_usuario_duplicado():
-    # Usamos un correo real que ya está en PostgreSQL
+def test_registro_usuario_duplicado(client):
     payload = {
-        "nombre": "Vicente Clon",
-        "email": "dazztyn@email.com", 
-        "contrasena": "OtraClaveDistinta"
+        "nombre": "Original",
+        "email": "duplicado@test.com",
+        "contrasena": "123"
     }
-    response = client.post("/api/usuarios/", json=payload)
-    
+    client.post("/api/usuarios/", json=payload)  # insertamos el usuario por primera vez
+    response = client.post("/api/usuarios/", json=payload)  # luego lo duplicas
     assert response.status_code == 400
     assert response.json()["detail"] == "El email ya está registrado"

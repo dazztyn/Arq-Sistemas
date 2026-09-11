@@ -4,7 +4,7 @@ from main import app
 
 client = TestClient(app)
 
-def test_crear_suscripcion_exitosa():
+def test_crear_suscripcion_exitosa(client):
     # Creamos un usuario temporal para el test
     email_temp = f"sub_{int(time.time())}@test.com"
     res_user = client.post("/api/usuarios/", json={
@@ -27,7 +27,7 @@ def test_crear_suscripcion_exitosa():
     assert response.status_code == 200
     assert response.json()["mensaje"] == "Suscripción activada exitosamente"
 
-def test_crear_suscripcion_usuario_invalido():
+def test_crear_suscripcion_usuario_invalido(client):
     # Le pasamos un ID que sabemos que no existe
     payload = {
         "usuario_id": 9999,
