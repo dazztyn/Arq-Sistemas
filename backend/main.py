@@ -4,6 +4,7 @@ import models # noqa: F401
 from database import init_db
 from conversion import router as conversion_router
 from usuarios import router as usuarios_router
+from suscripciones import router as suscripciones_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -19,10 +20,10 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# conexion de modulo de conversion
+# conexion de modulos
 app.include_router(conversion_router.router)
 app.include_router(usuarios_router.router)
-
+app.include_router(suscripciones_router.router)
 @app.get("/")
 async def health_check():
     return {"status": "ok", "mensaje": "Servidor FastAPI funcionando con BD y módulos conectados"}
