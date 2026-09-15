@@ -10,7 +10,6 @@ async def crear_usuario(session: AsyncSession, nombre: str, email: str, contrase
     if usuario_existente:
         return None
         
-    # aqui se cifra la contraseña
     contrasena_hash = hashlib.sha256(contrasena.encode()).hexdigest()
     
     nuevo_usuario = Usuario(
@@ -24,3 +23,15 @@ async def crear_usuario(session: AsyncSession, nombre: str, email: str, contrase
     await session.refresh(nuevo_usuario) # actualiza el objeto para obtener el ID que generó la base de datos
     
     return nuevo_usuario
+
+async def obtener_usuario_por_email(session: AsyncSession, email: str):
+    consulta = select(Usuario).where(Usuario.email == email)
+    resultado = await session.execute(consulta)
+    
+    return resultado.scalars().first()
+
+def verificar_contrasena(contrasena_plana: str, contrasena_hash: str) -> bool:
+
+    hash_calculado = hashlib.sha256(contrasena_plana.encode('utf-8')).hexdigest()
+    
+    return hash_calculado == contrasena_hash
