@@ -4,6 +4,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from datetime import date
 from database import get_session
 from . import services
+from usuarios.router import oauth2_scheme
 
 router = APIRouter(prefix="/api/suscripciones", tags=["Suscripciones"])
 
@@ -16,7 +17,7 @@ class SuscripcionRegistro(BaseModel):
     fecha_proximo_cobro: date
 
 @router.post("/")
-async def registrar_suscripcion(suscripcion: SuscripcionRegistro, session: AsyncSession = Depends(get_session)):
+async def registrar_suscripcion(suscripcion: SuscripcionRegistro, session: AsyncSession = Depends(get_session), token: str = Depends(oauth2_scheme)):
     try:
         nueva_sub = await services.crear_suscripcion(
             session=session,

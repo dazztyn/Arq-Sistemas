@@ -1,10 +1,14 @@
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
 from pydantic import BaseModel
 from sqlmodel.ext.asyncio.session import AsyncSession
 from database import get_session
 from . import services
+from security import crear_token_acceso
+from usuarios.router import oauth2_scheme
 
 router = APIRouter(prefix="/api/usuarios", tags=["Usuarios"])
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/usuarios/login")
 
 # Esquema (DTO) para validar los datos
 class UsuarioRegistro(BaseModel):
@@ -24,9 +28,21 @@ async def registrar(usuario: UsuarioRegistro, session: AsyncSession = Depends(ge
     if not nuevo_user:
         raise HTTPException(status_code=400, detail="El email ya está registrado")
         
-    # Devolvemos un JSON limpio sin la contraseña
     return {
         "mensaje": "Usuario creado exitosamente", 
         "id": nuevo_user.id, 
         "email": nuevo_user.email
     }
+
+@router.post("/login")
+async def login(form_data: OAuth2PasswordRequestForm = Depends(), session: AsyncSession = Depends(get_session)):
+
+    usuario = await services.obtener_usuario_por_email(session, form_data.username)
+    
+    # Aquí se usa la función en services.py para verificar el hash
+    if not usuario or not services.verificar_contrasena(form_data.password, usuario.contrasena_hash):
+        raise HTTPException(status_code=401, detail="Correo o contraseña incorrectos")
+    
+    token = crear_token_acceso(data={"sub": usuario.email, "rol": usuario.rol})
+    
+    return {"access_token": token, "token_type": "bearer"}

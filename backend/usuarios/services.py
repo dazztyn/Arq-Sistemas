@@ -10,7 +10,6 @@ async def crear_usuario(session: AsyncSession, nombre: str, email: str, contrase
     if usuario_existente:
         return None
         
-    # aqui se cifra la contraseña
     contrasena_hash = hashlib.sha256(contrasena.encode()).hexdigest()
     
     nuevo_usuario = Usuario(
