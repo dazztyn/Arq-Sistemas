@@ -5,7 +5,6 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from database import get_session
 from . import services
 from security import crear_token_acceso
-from usuarios.router import oauth2_scheme
 
 router = APIRouter(prefix="/api/usuarios", tags=["Usuarios"])
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/usuarios/login")
