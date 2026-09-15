@@ -4,7 +4,7 @@ from pydantic import BaseModel
 from sqlmodel.ext.asyncio.session import AsyncSession
 from database import get_session
 from . import services
-from security import crear_token_acceso
+from security import crear_token_acceso, decodificar_token
 
 router = APIRouter(prefix="/api/usuarios", tags=["Usuarios"])
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/usuarios/login")
@@ -14,6 +14,7 @@ class UsuarioRegistro(BaseModel):
     nombre: str
     email: str
     contrasena: str
+
 
 @router.post("/")
 async def registrar(usuario: UsuarioRegistro, session: AsyncSession = Depends(get_session)):
@@ -33,6 +34,7 @@ async def registrar(usuario: UsuarioRegistro, session: AsyncSession = Depends(ge
         "email": nuevo_user.email
     }
 
+
 @router.post("/login")
 async def login(form_data: OAuth2PasswordRequestForm = Depends(), session: AsyncSession = Depends(get_session)):
 
@@ -45,3 +47,14 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), session: Async
     token = crear_token_acceso(data={"sub": usuario.email, "rol": usuario.rol})
     
     return {"access_token": token, "token_type": "bearer"}
+
+
+@router.get("/perfil")
+async def obtener_perfil_actual(token: str = Depends(oauth2_scheme)):
+    # El router delega el trabajo de validación
+    datos_usuario = decodificar_token(token)
+    
+    return {
+        "email": datos_usuario.get("sub"),
+        "rol": datos_usuario.get("rol")
+    }
