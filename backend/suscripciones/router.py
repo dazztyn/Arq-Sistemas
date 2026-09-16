@@ -56,3 +56,24 @@ async def listar_mis_suscripciones(
     suscripciones = await services.obtener_suscripciones_por_usuario(session, usuario_db.id)
     
     return suscripciones
+
+@router.get("/resumen")
+async def obtener_resumen_gastos(
+    moneda: str = "CLP",
+    session: AsyncSession = Depends(get_session),
+    token: str = Depends(oauth2_scheme)
+):
+    # Validamos usuario
+    payload = decodificar_token(token)
+    usuario_db = await obtener_usuario_por_email(session, payload.get("sub"))
+    if not usuario_db:
+         raise HTTPException(status_code=404, detail="Usuario no encontrado")
+         
+    # Llamamos al servicio que calcula el gasto total en la moneda deseada
+    total = await services.calcular_gasto_total(session, usuario_db.id, moneda_destino=moneda.upper())
+    
+    return {
+        "usuario": usuario_db.nombre,
+        "moneda": moneda.upper(),
+        "gasto_total_mensual": total
+    }
