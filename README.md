@@ -56,3 +56,19 @@ ACCESS_TOKEN_EXPIRE_MINUTES=60
 uvicorn main:app --reload
 ```
 La API quedará disponible en http://127.0.0.1:8000.
+
+## Endpoints
+
+### Usuario:
+| Método | Endpoint | Descripción | Requiere Token |
+|:---|:---|:---|:---:|
+| `POST` | `/api/usuarios/` | Registro de un nuevo usuario | No |
+| `POST` | `/api/usuarios/login` | Login (form-data) que retorna el Bearer JWT | No |
+| `GET` | `/api/usuarios/perfil` | Retorna los datos del usuario actual autenticado | Sí |
+
+### Suscripciones:
+| Método | Endpoint | Descripción | Requiere Token |
+|:---|:---|:---|:---:|
+| `POST` | `/api/suscripciones/` | Registra una nueva suscripción para el usuario | Sí |
+| `GET` | `/api/suscripciones/listar` | Lista todas las suscripciones registradas del usuario | Sí |
+| `GET` | `/api/suscripciones/resumen` | Retorna el total mensual consolidado con conversión | Sí |
