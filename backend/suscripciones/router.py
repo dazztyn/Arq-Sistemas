@@ -5,6 +5,8 @@ from datetime import date
 from database import get_session
 from . import services
 from usuarios.router import oauth2_scheme
+from security import decodificar_token
+from usuarios.services import obtener_usuario_por_email
 
 router = APIRouter(prefix="/api/suscripciones", tags=["Suscripciones"])
 
@@ -15,6 +17,7 @@ class SuscripcionRegistro(BaseModel):
     monto_original: float
     moneda_original: str
     fecha_proximo_cobro: date
+
 
 @router.post("/")
 async def registrar_suscripcion(suscripcion: SuscripcionRegistro, session: AsyncSession = Depends(get_session), token: str = Depends(oauth2_scheme)):
@@ -34,3 +37,22 @@ async def registrar_suscripcion(suscripcion: SuscripcionRegistro, session: Async
         }
     except Exception:
         raise HTTPException(status_code=400, detail="Error al crear suscripción. Verifique que el usuario exista.")
+
+
+@router.get("/listar")
+async def listar_mis_suscripciones(
+    session: AsyncSession = Depends(get_session),
+    token: str = Depends(oauth2_scheme)
+):
+    # Sacamos el email del token
+    payload = decodificar_token(token)
+    email_usuario = payload.get("sub")
+    
+    # Buscamos el ID real del usuario en la base de datos
+    usuario_db = await obtener_usuario_por_email(session, email_usuario)
+    if not usuario_db:
+         raise HTTPException(status_code=404, detail="Usuario no encontrado")
+         
+    suscripciones = await services.obtener_suscripciones_por_usuario(session, usuario_db.id)
+    
+    return suscripciones

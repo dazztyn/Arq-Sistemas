@@ -1,6 +1,7 @@
 from sqlmodel.ext.asyncio.session import AsyncSession
 from models import Suscripcion
 from datetime import date
+from sqlmodel import select
 
 async def crear_suscripcion(
     session: AsyncSession, 
@@ -24,3 +25,8 @@ async def crear_suscripcion(
     await session.refresh(nueva_suscripcion)
     
     return nueva_suscripcion
+
+async def obtener_suscripciones_por_usuario(session: AsyncSession, usuario_id: int):
+    consulta = select(Suscripcion).where(Suscripcion.usuario_id == usuario_id)
+    resultado = await session.execute(consulta)
+    return resultado.scalars().all()
