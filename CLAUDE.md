@@ -29,8 +29,8 @@ La app permite **controlar gastos recurrentes en suscripciones**, unificando mon
 
 ### 2.1 Gestión de suscripciones y seguridad
 - Registro y autenticación con **JSON Web Tokens** (OAuth2 password flow).
-- Cada usuario tiene un entorno privado: solo ve y gestiona *sus* suscripciones.
-- Una suscripción tiene: nombre del servicio, monto, moneda de origen y fecha de próximo cobro.
+- Cada usuario tiene un entorno privado: solo ve y gestiona *sus* suscripciones — el `usuario_id` siempre se deriva del token vía `dependencies.obtener_usuario_actual`, nunca del body de la petición.
+- Una suscripción tiene: nombre del servicio, monto, moneda de origen, fecha de próximo cobro, `activa` (bool, default `true`) y `periodicidad` (`"mensual"` o `"anual"`).
 
 ### 2.2 Motor de conversión y resumen financiero
 - Cruza las suscripciones del usuario con la API externa de divisas (`exchangerate-api`).
@@ -47,9 +47,10 @@ La app permite **controlar gastos recurrentes en suscripciones**, unificando mon
 | `POST` | `/api/usuarios/` | Registro de usuario | No |
 | `POST` | `/api/usuarios/login` | Login (form-data), retorna Bearer JWT | No |
 | `GET` | `/api/usuarios/perfil` | Datos del usuario autenticado | Sí |
-| `POST` | `/api/suscripciones/` | Registra una suscripción | Sí |
+| `POST` | `/api/suscripciones/` | Registra una suscripción (usuario derivado del token; recibe `periodicidad`) | Sí |
 | `GET` | `/api/suscripciones/listar` | Lista las suscripciones del usuario | Sí |
 | `GET` | `/api/suscripciones/resumen` | Total mensual consolidado con conversión (`?moneda=CLP`) | Sí |
+| `PATCH` | `/api/suscripciones/{id}/desactivar` | Marca una suscripción propia como `activa=false` | Sí |
 | `GET` | `/api/conversion/` | Conversión puntual de un monto | No |
 | `GET` | `/` | Health check | No |
 
@@ -78,7 +79,8 @@ backend/
   config.py         # carga el .env y expone la configuración; único lugar que lee el entorno
   .env.example      # plantilla de variables (el .env real está en .gitignore)
   database.py       # engine async, init_db(), get_session()
-  security.py       # crear_token_acceso(), decodificar_token()
+  security.py       # crear_token_acceso(), decodificar_token(), oauth2_scheme
+  dependencies.py   # obtener_usuario_actual(): dependencia compartida token -> Usuario
   usuarios/         # router.py + services.py
   suscripciones/    # router.py + services.py
   conversion/       # router.py + services.py (API externa de divisas)
@@ -128,13 +130,15 @@ Los tests levantan la app real contra la base de datos definida en `DATABASE_URL
 Ordenada por impacto en la nota:
 
 1. **Frontend sin implementar**: `src/App.jsx` es la plantilla de Vite. No hay login, listado, formulario ni cliente HTTP hacia la API. Es el mayor riesgo para la nota (requisito 4: tope de 3,9 si el proyecto no funciona).
-2. **`POST /api/suscripciones/` recibe `usuario_id` en el body** en vez de derivarlo del token, como sí hacen `/listar` y `/resumen`. Permite crear suscripciones a nombre de otro usuario.
+2. ~~`POST /api/suscripciones/` recibe `usuario_id` en el body~~ — **corregido** (rama `fix-bugs`): el DTO ya no acepta `usuario_id`; se deriva siempre del token vía `dependencies.obtener_usuario_actual`, igual que `/listar` y `/resumen`.
 3. **Tests sin aislamiento**: `conftest.py` usa la base de datos real y los tests evitan colisiones con `int(time.time())` en los emails. Además, los tests de conversión golpean la API externa real, así que el CI depende de la red.
-4. **Sistema de alertas ausente** (ver 2.3).
+4. **Sistema de alertas ausente** (ver 2.3) — pendiente para una rama posterior a `fix-bugs`. Ya existen los campos `activa`/`periodicidad` en `Suscripcion` para soportarlo.
 5. **Sin auto-deploy** en el pipeline (deseable según el PDF).
 6. **`backend/.coverage` está versionado**: es un artefacto binario de `pytest-cov`, debería ir al `.gitignore` y salir del índice.
 7. El README declara "React (TypeScript)" pero los archivos del frontend son `.jsx`.
 8. El coverage reportado (85%) incluye los propios archivos de test; sin ellos queda en ~80%. Se puede afinar con un `.coveragerc` que los excluya.
+9. ~~`security.py` capturaba `except jwt.JWTError`~~ — **corregido** (rama `fix-bugs`): esa excepción no existe en PyJWT (es de `python-jose`), así que un token malformado no expirado producía un `AttributeError` no capturado → 500 en vez de 401. Ahora captura `jwt.PyJWTError`.
+10. Contraseñas con SHA-256 sin salt (`usuarios/services.py`), comparación no constant-time. Conocido, fuera de alcance de `fix-bugs` — requiere migrar a una librería tipo `passlib`/`bcrypt`, cambio más grande.
 
 ---
 

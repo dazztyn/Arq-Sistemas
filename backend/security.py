@@ -1,7 +1,10 @@
 import jwt
 from datetime import datetime, timedelta, timezone
 from fastapi import HTTPException
+from fastapi.security import OAuth2PasswordBearer
 from config import SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/usuarios/login")
 
 def crear_token_acceso(data: dict):
     to_encode = data.copy()
@@ -22,5 +25,5 @@ def decodificar_token(token: str) -> dict:
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="El token ha expirado, inicie sesión nuevamente")
     
-    except jwt.JWTError:
+    except jwt.PyJWTError:
         raise HTTPException(status_code=401, detail="Token manipulado o inválido")

@@ -19,7 +19,9 @@ class Suscripcion(SQLModel, table=True):
     monto_original: float
     moneda_original: str # Ej: "USD", "EUR", "CLP"
     fecha_proximo_cobro: date
-    
+    activa: bool = Field(default=True)
+    periodicidad: str = Field(default="mensual")  # mensual o anual para calcular mejor los gastos
+
     usuario_id: Optional[int] = Field(default=None, foreign_key="usuario.id")
     
     # Relación inversa
