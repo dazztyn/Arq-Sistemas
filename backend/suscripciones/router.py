@@ -1,79 +1,77 @@
+from typing import Literal
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlmodel.ext.asyncio.session import AsyncSession
 from datetime import date
 from database import get_session
 from . import services
-from usuarios.router import oauth2_scheme
-from security import decodificar_token
-from usuarios.services import obtener_usuario_por_email
+from dependencies import obtener_usuario_actual
+from models import Usuario
 
 router = APIRouter(prefix="/api/suscripciones", tags=["Suscripciones"])
 
 # dto para recibir datos de la sub desde el front
 class SuscripcionRegistro(BaseModel):
-    usuario_id: int
     nombre_servicio: str
     monto_original: float
     moneda_original: str
     fecha_proximo_cobro: date
+    periodicidad: Literal["mensual", "anual"] = "mensual"
 
 
 @router.post("/")
-async def registrar_suscripcion(suscripcion: SuscripcionRegistro, session: AsyncSession = Depends(get_session), token: str = Depends(oauth2_scheme)):
-    try:
-        nueva_sub = await services.crear_suscripcion(
-            session=session,
-            usuario_id=suscripcion.usuario_id,
-            nombre_servicio=suscripcion.nombre_servicio,
-            monto_original=suscripcion.monto_original,
-            moneda_original=suscripcion.moneda_original,
-            fecha_proximo_cobro=suscripcion.fecha_proximo_cobro
-        )
-        return {
-            "mensaje": "Suscripción activada exitosamente",
-            "suscripcion_id": nueva_sub.id,
-            "servicio": nueva_sub.nombre_servicio
-        }
-    except Exception:
-        raise HTTPException(status_code=400, detail="Error al crear suscripción. Verifique que el usuario exista.")
+async def registrar_suscripcion(
+    suscripcion: SuscripcionRegistro,
+    session: AsyncSession = Depends(get_session),
+    usuario_actual: Usuario = Depends(obtener_usuario_actual),
+):
+    nueva_sub = await services.crear_suscripcion(
+        session=session,
+        usuario_id=usuario_actual.id,
+        nombre_servicio=suscripcion.nombre_servicio,
+        monto_original=suscripcion.monto_original,
+        moneda_original=suscripcion.moneda_original,
+        fecha_proximo_cobro=suscripcion.fecha_proximo_cobro,
+        periodicidad=suscripcion.periodicidad,
+    )
+    return {
+        "mensaje": "Suscripción activada exitosamente",
+        "suscripcion_id": nueva_sub.id,
+        "servicio": nueva_sub.nombre_servicio
+    }
 
 
 @router.get("/listar")
 async def listar_mis_suscripciones(
     session: AsyncSession = Depends(get_session),
-    token: str = Depends(oauth2_scheme)
+    usuario_actual: Usuario = Depends(obtener_usuario_actual),
 ):
-    # Sacamos el email del token
-    payload = decodificar_token(token)
-    email_usuario = payload.get("sub")
-    
-    # Buscamos el ID real del usuario en la base de datos
-    usuario_db = await obtener_usuario_por_email(session, email_usuario)
-    if not usuario_db:
-         raise HTTPException(status_code=404, detail="Usuario no encontrado")
-         
-    suscripciones = await services.obtener_suscripciones_por_usuario(session, usuario_db.id)
-    
+    suscripciones = await services.obtener_suscripciones_por_usuario(session, usuario_actual.id)
     return suscripciones
 
 @router.get("/resumen")
 async def obtener_resumen_gastos(
     moneda: str = "CLP",
     session: AsyncSession = Depends(get_session),
-    token: str = Depends(oauth2_scheme)
+    usuario_actual: Usuario = Depends(obtener_usuario_actual),
 ):
-    # Validamos usuario
-    payload = decodificar_token(token)
-    usuario_db = await obtener_usuario_por_email(session, payload.get("sub"))
-    if not usuario_db:
-         raise HTTPException(status_code=404, detail="Usuario no encontrado")
-         
     # Llamamos al servicio que calcula el gasto total en la moneda deseada
-    total = await services.calcular_gasto_total(session, usuario_db.id, moneda_destino=moneda.upper())
-    
+    total = await services.calcular_gasto_total(session, usuario_actual.id, moneda_destino=moneda.upper())
+
     return {
-        "usuario": usuario_db.nombre,
+        "usuario": usuario_actual.nombre,
         "moneda": moneda.upper(),
         "gasto_total_mensual": total
     }
+
+
+@router.patch("/{suscripcion_id}/desactivar")
+async def desactivar_suscripcion(
+    suscripcion_id: int,
+    session: AsyncSession = Depends(get_session),
+    usuario_actual: Usuario = Depends(obtener_usuario_actual),
+):
+    ok = await services.desactivar_suscripcion(session, suscripcion_id, usuario_actual.id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Suscripción no encontrada")
+    return {"mensaje": "Suscripción desactivada"}

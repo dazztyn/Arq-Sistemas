@@ -5,27 +5,29 @@ from sqlmodel import select
 from conversion.services import convertir_moneda
 
 async def crear_suscripcion(
-    session: AsyncSession, 
-    usuario_id: int, 
-    nombre_servicio: str, 
-    monto_original: float, 
+    session: AsyncSession,
+    usuario_id: int,
+    nombre_servicio: str,
+    monto_original: float,
     moneda_original: str,
-    fecha_proximo_cobro: date
+    fecha_proximo_cobro: date,
+    periodicidad: str = "mensual",
     ):
-    
+
     nueva_suscripcion = Suscripcion(
         usuario_id=usuario_id,
         nombre_servicio=nombre_servicio,
         monto_original=monto_original,
         moneda_original=moneda_original,
-        fecha_proximo_cobro=fecha_proximo_cobro
+        fecha_proximo_cobro=fecha_proximo_cobro,
+        periodicidad=periodicidad,
     )
 
     # se guarda la sub nueva del usuario en la bd
     session.add(nueva_suscripcion)
     await session.commit()
     await session.refresh(nueva_suscripcion)
-    
+
     return nueva_suscripcion
 
 async def obtener_suscripciones_por_usuario(session: AsyncSession, usuario_id: int):
@@ -34,6 +36,22 @@ async def obtener_suscripciones_por_usuario(session: AsyncSession, usuario_id: i
     consulta = select(Suscripcion).where(Suscripcion.usuario_id == usuario_id)
     resultado = await session.execute(consulta)
     return resultado.scalars().all()
+
+async def desactivar_suscripcion(session: AsyncSession, suscripcion_id: int, usuario_id: int) -> bool:
+    consulta = select(Suscripcion).where(
+        Suscripcion.id == suscripcion_id,
+        Suscripcion.usuario_id == usuario_id,
+    )
+    resultado = await session.execute(consulta)
+    suscripcion = resultado.scalar_one_or_none()
+
+    if not suscripcion:
+        return False
+
+    suscripcion.activa = False
+    session.add(suscripcion)
+    await session.commit()
+    return True
 
 async def calcular_gasto_total(session: AsyncSession, usuario_id: int, moneda_destino: str = "CLP"):
     suscripciones = await obtener_suscripciones_por_usuario(session, usuario_id)

@@ -1,13 +1,14 @@
 from fastapi import APIRouter, Depends, HTTPException
-from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
+from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel
 from sqlmodel.ext.asyncio.session import AsyncSession
 from database import get_session
 from . import services
-from security import crear_token_acceso, decodificar_token
+from security import crear_token_acceso
+from dependencies import obtener_usuario_actual
+from models import Usuario
 
 router = APIRouter(prefix="/api/usuarios", tags=["Usuarios"])
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/usuarios/login")
 
 # Esquema (DTO) para validar los datos
 class UsuarioRegistro(BaseModel):
@@ -50,11 +51,8 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), session: Async
 
 
 @router.get("/perfil")
-async def obtener_perfil_actual(token: str = Depends(oauth2_scheme)):
-    # El router delega el trabajo de validación
-    datos_usuario = decodificar_token(token)
-    
+async def obtener_perfil_actual(usuario_actual: Usuario = Depends(obtener_usuario_actual)):
     return {
-        "email": datos_usuario.get("sub"),
-        "rol": datos_usuario.get("rol")
+        "email": usuario_actual.email,
+        "rol": usuario_actual.rol
     }

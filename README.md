@@ -95,6 +95,7 @@ La API quedará disponible en http://127.0.0.1:8000.
 ### Suscripciones:
 | Método | Endpoint | Descripción | Requiere Token |
 |:---|:---|:---|:---:|
-| `POST` | `/api/suscripciones/` | Registra una nueva suscripción para el usuario | Sí |
+| `POST` | `/api/suscripciones/` | Registra una nueva suscripción para el usuario autenticado (`nombre_servicio`, `monto_original`, `moneda_original`, `fecha_proximo_cobro`, `periodicidad`) | Sí |
 | `GET` | `/api/suscripciones/listar` | Lista todas las suscripciones registradas del usuario | Sí |
 | `GET` | `/api/suscripciones/resumen` | Retorna el total mensual consolidado con conversión | Sí |
+| `PATCH` | `/api/suscripciones/{id}/desactivar` | Marca una suscripción propia como inactiva | Sí |
