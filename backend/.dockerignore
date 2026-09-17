@@ -1,0 +1,14 @@
+# El .env nunca entra a la imagen: la configuración se inyecta por variables de entorno
+.env
+
+# Entorno virtual local: las dependencias se instalan dentro de la imagen
+.venv/
+
+# Artefactos de Python y de las herramientas de testing
+__pycache__/
+*.pyc
+.pytest_cache/
+.coverage
+
+Dockerfile
+.dockerignore

@@ -65,12 +65,16 @@ jobs:
       - name: Lint
         run: ruff check backend
 
+      # El proyecto exige un mínimo de 60% de cobertura: --cov-fail-under hace que el
+      # pipeline falle si baja de ahí, en vez de tener que revisarlo a mano.
       - name: Ejecutar pruebas
         shell: bash
         run: |
           if [ -d "backend/tests" ] || compgen -G "backend/test_*.py" > /dev/null; then
-            pytest backend -v
+            pytest backend -v --cov=backend --cov-report=term-missing --cov-fail-under=60
           else
             echo "No se encontraron pruebas; se omite pytest."
           fi
 
+      - name: Construir imagen Docker del backend
+        run: docker build -t arq-sistemas-backend ./backend

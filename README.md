@@ -18,6 +18,25 @@ Mini app-web monolítica que permite gestionar suscripciones a distintos servici
 * **Testing & CI/CD:** Pytest (85% de cobertura) y GitHub Actions con base de datos de prueba en la nube.
 * **Integraciones:** Consumo de APIs REST asíncronas con `httpx`.
 
+## Ejecución con Docker (recomendado)
+
+El backend está dockerizado y el `docker-compose.yml` levanta el stack completo: PostgreSQL, la API y pgAdmin.
+
+```bash
+git clone <URL_DEL_REPOSITORIO>
+cd Arq-Sistemas
+cp backend/.env.example backend/.env   # completa SECRET_KEY
+docker compose up -d --build
+```
+
+| Servicio | URL |
+|:---|:---|
+| API | http://localhost:8000 (documentación en `/docs`) |
+| PostgreSQL | `localhost:5432` |
+| pgAdmin | http://localhost:5050 |
+
+`docker compose up -d db` levanta solo la base de datos, si prefieres correr el backend desde tu entorno local.
+
 ## Instalación y Ejecución Local
 
 ### 1. **Clonar el repositorio y entrar a la carpeta:**
