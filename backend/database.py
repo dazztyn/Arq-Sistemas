@@ -2,9 +2,7 @@ from sqlmodel import SQLModel
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import NullPool
-
-# localhost por mientras, cambiar luego
-DATABASE_URL = "postgresql+asyncpg://user:password@localhost:5432/suscripciones_db"
+from config import DATABASE_URL
 
 engine = create_async_engine(DATABASE_URL, echo=True, poolclass=NullPool)
 

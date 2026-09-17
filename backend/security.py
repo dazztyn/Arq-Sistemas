@@ -1,11 +1,7 @@
 import jwt
 from datetime import datetime, timedelta, timezone
 from fastapi import HTTPException
-
-# En producción (Railway/Render) esto se lee de una variable de entorno (.env)
-SECRET_KEY = "mi_super_clave_secreta_para_el_proyecto_arquitectura"
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60 # El token dura 1 hora
+from config import SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES
 
 def crear_token_acceso(data: dict):
     to_encode = data.copy()

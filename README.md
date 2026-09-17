@@ -15,7 +15,7 @@ Mini app-web monolítica que permite gestionar suscripciones a distintos servici
 * **Frameworks:** FastAPI (Python), React (TypeScript)
 * **ORM & Base de Datos:** SQLModel, PostgreSQL
 * **Autenticación:** OAuth2 con PyJWT (Hashed passwords con SHA-256)
-* **Testing & CI/CD:** Pytest (98% de cobertura) y GitHub Actions con base de datos de prueba en la nube.
+* **Testing & CI/CD:** Pytest (85% de cobertura) y GitHub Actions con base de datos de prueba en la nube.
 * **Integraciones:** Consumo de APIs REST asíncronas con `httpx`.
 
 ## Instalación y Ejecución Local
@@ -42,13 +42,20 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 4. ***Variables de Entorno:**
-Crea un archivo .env en la raíz de backend/ con tus credenciales locales:
+### 4. **Variables de Entorno:**
+El backend lee toda su configuración del entorno (`backend/config.py`). Copia la plantilla y completa tus valores locales:
 ```bash
-DATABASE_URL=postgresql+asyncpg://postgres:tu_password@localhost:5432/suscripciones_db
-SECRET_KEY=clave_secreta_super_segura_para_jwt
+cp .env.example .env
+```
+```bash
+DATABASE_URL=postgresql+asyncpg://user:password@localhost:5432/suscripciones_db
+SECRET_KEY=<genera la tuya>
 ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=60
+```
+`SECRET_KEY` es obligatoria y no tiene valor por defecto: si falta, la aplicación no arranca. Genera una con:
+```bash
+python -c "import secrets; print(secrets.token_hex(32))"
 ```
 
 ### 5. **Iniciar la aplicación:**

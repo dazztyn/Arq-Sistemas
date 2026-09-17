@@ -24,6 +24,13 @@ jobs:
     name: Validar backend
     runs-on: ubuntu-latest
 
+    # En CI no existe un .env, así que las variables se definen acá.
+    env:
+      DATABASE_URL: postgresql+asyncpg://user:password@localhost:5432/suscripciones_db
+      SECRET_KEY: clave_desechable_solo_para_ejecutar_los_tests
+      ALGORITHM: HS256
+      ACCESS_TOKEN_EXPIRE_MINUTES: 60
+
     services:
       postgres:
         image: postgres:15-alpine
