@@ -1,11 +1,10 @@
 from sqlmodel import SQLModel
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import NullPool
+from config import DATABASE_URL
 
-# localhost por mientras, cambiar luego
-DATABASE_URL = "postgresql+asyncpg://user:password@localhost:5432/suscripciones_db"
-
-engine = create_async_engine(DATABASE_URL, echo=True)
+engine = create_async_engine(DATABASE_URL, echo=True, poolclass=NullPool)
 
 # crea las tablas automaticamente
 async def init_db():
