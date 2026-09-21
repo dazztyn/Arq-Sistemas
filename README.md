@@ -10,6 +10,9 @@ Mini app-web monolítica que permite gestionar suscripciones a distintos servici
 2. **Motor de Conversión y Resumen Financiero:** 
    El sistema unifica los gastos del usuario cruzando la información de sus suscripciones con una API externa de divisas (`exchangerate-api`). La cuál permite calcular el gasto total  en una moneda unificada (por ejemplo, convirtiendo los cobros en USD a CLP de forma automática y en tiempo real).
 
+3. **Sistema de Alertas de Cobro:**
+   Informa qué suscripciones se cobran dentro de una ventana configurable de días (por defecto 7, hacia adelante y hacia atrás), indicando cuántos días faltan, el monto convertido a la moneda elegida y si el cobro ya venció. Las alertas se calculan al momento de la consulta a partir de la fecha de próximo cobro, y tras un cobro la suscripción se pone al día con el endpoint de renovación, que avanza la fecha un ciclo según su periodicidad (mensual o anual).
+
 ## Stack Tecnológico
 
 * **Frameworks:** FastAPI (Python), React (TypeScript)
@@ -99,3 +102,9 @@ La API quedará disponible en http://127.0.0.1:8000.
 | `GET` | `/api/suscripciones/listar` | Lista todas las suscripciones registradas del usuario | Sí |
 | `GET` | `/api/suscripciones/resumen` | Retorna el total mensual consolidado con conversión | Sí |
 | `PATCH` | `/api/suscripciones/{id}/desactivar` | Marca una suscripción propia como inactiva | Sí |
+| `PATCH` | `/api/suscripciones/{id}/renovar` | Avanza la fecha de cobro un ciclo según su periodicidad | Sí |
+
+### Alertas:
+| Método | Endpoint | Descripción | Requiere Token |
+|:---|:---|:---|:---:|
+| `GET` | `/api/alertas/proximas` | Cobros dentro de la ventana `±dias` (`?dias=7&moneda=CLP`), con monto convertido y marca de vencido | Sí |

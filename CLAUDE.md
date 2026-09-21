@@ -37,8 +37,11 @@ La app permite **controlar gastos recurrentes en suscripciones**, unificando mon
 - Calcula el **gasto total mensual en una moneda unificada** (ej. convertir cobros en USD a CLP en tiempo real).
 
 ### 2.3 Sistema de alertas
-- El README lo declara ("sistema de alertas para notificar una próxima fecha de cobro") pero **no está implementado**.
-- Es parte del MVP comprometido: si se mantiene en el README, hay que construirlo (endpoint de suscripciones próximas a vencer + aviso en el frontend).
+- Implementado en `backend/alertas/` como endpoint **on-demand**: el frontend consulta `GET /api/alertas/proximas` y muestra el aviso; no hay scheduler ni envío de correos.
+- **Stateless**: la alerta no se persiste, se calcula en cada request desde `fecha_proximo_cobro`. No hay estado de "alerta vista/descartada" (si se quisiera, va en el frontend con `localStorage`).
+- **Ventana simétrica**: con `?dias=7` devuelve desde `hoy - 7` hasta `hoy + 7`. Las vencidas recientes salen con `vencida: true` y `dias_restantes` negativo; las vencidas hace más de `dias` quedan fuera para no acumular ruido.
+- Incluye el monto convertido a la moneda pedida (`?moneda=CLP`). Si la API de divisas falla, la alerta igual se entrega con `monto_convertido: null` en vez de fallar entera.
+- Para avanzar la fecha tras un cobro existe `PATCH /api/suscripciones/{id}/renovar`, que suma **un ciclo** según `periodicidad` (nunca avanza solo: una lectura no escribe en la BD).
 
 ### 2.4 Endpoints actuales
 
@@ -51,6 +54,8 @@ La app permite **controlar gastos recurrentes en suscripciones**, unificando mon
 | `GET` | `/api/suscripciones/listar` | Lista las suscripciones del usuario | Sí |
 | `GET` | `/api/suscripciones/resumen` | Total mensual consolidado con conversión (`?moneda=CLP`) | Sí |
 | `PATCH` | `/api/suscripciones/{id}/desactivar` | Marca una suscripción propia como `activa=false` | Sí |
+| `PATCH` | `/api/suscripciones/{id}/renovar` | Avanza `fecha_proximo_cobro` un ciclo según `periodicidad` | Sí |
+| `GET` | `/api/alertas/proximas` | Cobros dentro de la ventana `±dias` (`?dias=7&moneda=CLP`) | Sí |
 | `GET` | `/api/conversion/` | Conversión puntual de un monto | No |
 | `GET` | `/` | Health check | No |
 
@@ -82,8 +87,9 @@ backend/
   security.py       # crear_token_acceso(), decodificar_token(), oauth2_scheme
   dependencies.py   # obtener_usuario_actual(): dependencia compartida token -> Usuario
   usuarios/         # router.py + services.py
-  suscripciones/    # router.py + services.py
+  suscripciones/    # router.py + services.py (incluye avanzar_fecha() para renovar)
   conversion/       # router.py + services.py (API externa de divisas)
+  alertas/          # router.py + services.py (solo lectura: cobros próximos y vencidos)
   tests/            # conftest.py + tests por módulo
 frontend/           # React + Vite
 .github/workflows/  # ci.yml
@@ -132,7 +138,7 @@ Ordenada por impacto en la nota:
 1. **Frontend sin implementar**: `src/App.jsx` es la plantilla de Vite. No hay login, listado, formulario ni cliente HTTP hacia la API. Es el mayor riesgo para la nota (requisito 4: tope de 3,9 si el proyecto no funciona).
 2. ~~`POST /api/suscripciones/` recibe `usuario_id` en el body~~ — **corregido** (rama `fix-bugs`): el DTO ya no acepta `usuario_id`; se deriva siempre del token vía `dependencies.obtener_usuario_actual`, igual que `/listar` y `/resumen`.
 3. **Tests sin aislamiento**: `conftest.py` usa la base de datos real y los tests evitan colisiones con `int(time.time())` en los emails. Además, los tests de conversión golpean la API externa real, así que el CI depende de la red.
-4. **Sistema de alertas ausente** (ver 2.3) — pendiente para una rama posterior a `fix-bugs`. Ya existen los campos `activa`/`periodicidad` en `Suscripcion` para soportarlo.
+4. **`/api/suscripciones/resumen` suma también las desactivadas**: `calcular_gasto_total` usa `obtener_suscripciones_por_usuario`, que no filtra por `activa`. Una suscripción cancelada sigue contando en el gasto mensual. El módulo de alertas sí filtra correctamente; falta alinear el resumen (y decidir si `/listar` debe seguir mostrando todas).
 5. **Sin auto-deploy** en el pipeline (deseable según el PDF).
 6. **`backend/.coverage` está versionado**: es un artefacto binario de `pytest-cov`, debería ir al `.gitignore` y salir del índice.
 7. El README declara "React (TypeScript)" pero los archivos del frontend son `.jsx`.
