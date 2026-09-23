@@ -47,13 +47,15 @@ async def _obtener_suscripcion_del_usuario(session: AsyncSession, suscripcion_id
     resultado = await session.execute(consulta)
     return resultado.scalar_one_or_none()
 
-async def desactivar_suscripcion(session: AsyncSession, suscripcion_id: int, usuario_id: int) -> bool:
+async def cambiar_estado_suscripcion(
+    session: AsyncSession, suscripcion_id: int, usuario_id: int, activa: bool
+) -> bool:
     suscripcion = await _obtener_suscripcion_del_usuario(session, suscripcion_id, usuario_id)
 
     if not suscripcion:
         return False
 
-    suscripcion.activa = False
+    suscripcion.activa = activa
     session.add(suscripcion)
     await session.commit()
     return True

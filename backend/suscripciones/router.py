@@ -97,10 +97,26 @@ async def desactivar_suscripcion(
     session: AsyncSession = Depends(get_session),
     usuario_actual: Usuario = Depends(obtener_usuario_actual),
 ):
-    ok = await services.desactivar_suscripcion(session, suscripcion_id, usuario_actual.id)
+    ok = await services.cambiar_estado_suscripcion(
+        session, suscripcion_id, usuario_actual.id, activa=False
+    )
     if not ok:
         raise HTTPException(status_code=404, detail="Suscripción no encontrada")
     return {"mensaje": "Suscripción desactivada"}
+
+
+@router.patch("/{suscripcion_id}/reactivar")
+async def reactivar_suscripcion(
+    suscripcion_id: int,
+    session: AsyncSession = Depends(get_session),
+    usuario_actual: Usuario = Depends(obtener_usuario_actual),
+):
+    ok = await services.cambiar_estado_suscripcion(
+        session, suscripcion_id, usuario_actual.id, activa=True
+    )
+    if not ok:
+        raise HTTPException(status_code=404, detail="Suscripción no encontrada")
+    return {"mensaje": "Suscripción reactivada"}
 
 
 @router.patch("/{suscripcion_id}/renovar")
