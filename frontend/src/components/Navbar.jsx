@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
-import { useAuth } from "../utils/AuthContext";
+import { useAuth } from "../utils/useAuth";
 
 const contactEmail = "contacto@arqsistemas.com";
 
@@ -48,7 +48,7 @@ function Navbar() {
             to="/"
             className="text-xl font-bold tracking-wide text-texto"
           >
-            Placeholder
+            Placeholder<span className="text-primario">.</span>
           </NavLink>
 
           <nav className="hidden items-center gap-6 md:flex">

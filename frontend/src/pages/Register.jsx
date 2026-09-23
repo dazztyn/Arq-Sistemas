@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { useAuth } from "../utils/AuthContext";
+import { useAuth } from "../utils/useAuth";
+import { registrarUsuario } from "../services/Auth.service";
 
 function Register() {
   const [name, setName] = useState("");
@@ -8,6 +9,7 @@ function Register() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const { login } = useAuth();
 
@@ -35,13 +37,13 @@ function Register() {
       return;
     }
 
-    login({
-      name,
-      email,
-      role: "admin",
-    });
-
-    navigate("/dashboard");
+    setError("");
+    setIsLoading(true);
+    registrarUsuario({ nombre: name, email, contrasena: password })
+      .then(() => login(email, password))
+      .then(() => navigate("/dashboard"))
+      .catch((requestError) => setError(requestError.message))
+      .finally(() => setIsLoading(false));
   };
 
   return (
@@ -114,7 +116,7 @@ function Register() {
             type="submit"
             className="w-full bg-primario text-fondo font-semibold py-2.5 rounded-lg hover:shadow-lg hover:shadow-acento hover:-translate-y-0.5 transition"
           >
-            Registrarse
+            {isLoading ? "Creando cuenta..." : "Registrarse"}
           </button>
 
           <p className="text-center text-sm text-texto">

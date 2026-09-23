@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { useAuth } from "../utils/AuthContext";
+import { useAuth } from "../utils/useAuth";
 
 function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const { login } = useAuth();
 
@@ -23,12 +24,12 @@ function Login() {
       return;
     }
 
-    login({
-      email,
-      role: "admin",
-    });
-
-    navigate("/dashboard");
+    setError("");
+    setIsLoading(true);
+    login(email, password)
+      .then(() => navigate("/dashboard"))
+      .catch((requestError) => setError(requestError.message))
+      .finally(() => setIsLoading(false));
   };
 
   return (
@@ -75,7 +76,7 @@ function Login() {
             type="submit"
             className="w-full bg-primario text-fondo font-semibold py-2.5 rounded-lg hover:shadow-lg hover:shadow-acento hover:-translate-y-0.5 transition"
           >
-            Entrar
+            {isLoading ? "Ingresando..." : "Entrar"}
           </button>
 
           <p className="text-center text-sm text-texto">
