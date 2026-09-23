@@ -143,7 +143,7 @@ Ordenada por impacto en la nota:
 2. ~~`POST /api/suscripciones/` recibe `usuario_id` en el body~~ — **corregido** (rama `fix-bugs`): el DTO ya no acepta `usuario_id`; se deriva siempre del token vía `dependencies.obtener_usuario_actual`, igual que `/listar` y `/resumen`.
 3. **Tests sin aislamiento**: `conftest.py` usa la base de datos real y los tests evitan colisiones con `int(time.time())` en los emails. Además, los tests de conversión golpean la API externa real, así que el CI depende de la red.
 4. ~~`/api/suscripciones/resumen` suma también las desactivadas~~ — **corregido** (rama `fixes-backend`): `obtener_suscripciones_por_usuario` acepta `solo_activas` y `calcular_gasto_total` la usa. `/listar` sigue devolviendo todas, a propósito, para que el frontend muestre el historial.
-5. **Sin auto-deploy** en el pipeline (deseable según el PDF).
+5. **Sin auto-deploy** en el pipeline (deseable según el PDF). Al montarlo, ojo con dos cosas: `SECRET_KEY` y `DATABASE_URL` deben venir de GitHub Secrets (los del `env:` de `ci.yml` son desechables, solo para los tests), y **`CORS_ORIGINS` debe apuntar a la URL pública del frontend**. Como esa variable tiene valor por defecto en `config.py`, si se olvida el backend arranca igual y el fallo solo se ve en la consola del navegador; ahí habrá que decidir si conviene quitarle el default para que falle ruidosamente.
 6. **`backend/.coverage` está versionado**: es un artefacto binario de `pytest-cov`, debería ir al `.gitignore` y salir del índice.
 7. El README declara "React (TypeScript)" pero los archivos del frontend son `.jsx`.
 8. El coverage reportado (98%) incluye los propios archivos de test, que siempre dan 100%; sin ellos el número real es más bajo. Se puede afinar con un `.coveragerc` que los excluya.
