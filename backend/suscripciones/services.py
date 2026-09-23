@@ -1,3 +1,4 @@
+import calendar
 from sqlmodel.ext.asyncio.session import AsyncSession
 from models import Suscripcion
 from datetime import date
@@ -37,13 +38,17 @@ async def obtener_suscripciones_por_usuario(session: AsyncSession, usuario_id: i
     resultado = await session.execute(consulta)
     return resultado.scalars().all()
 
-async def desactivar_suscripcion(session: AsyncSession, suscripcion_id: int, usuario_id: int) -> bool:
+async def _obtener_suscripcion_del_usuario(session: AsyncSession, suscripcion_id: int, usuario_id: int):
+    # Chequeo de propiedad: una suscripción solo es accesible por su dueño
     consulta = select(Suscripcion).where(
         Suscripcion.id == suscripcion_id,
         Suscripcion.usuario_id == usuario_id,
     )
     resultado = await session.execute(consulta)
-    suscripcion = resultado.scalar_one_or_none()
+    return resultado.scalar_one_or_none()
+
+async def desactivar_suscripcion(session: AsyncSession, suscripcion_id: int, usuario_id: int) -> bool:
+    suscripcion = await _obtener_suscripcion_del_usuario(session, suscripcion_id, usuario_id)
 
     if not suscripcion:
         return False
@@ -52,6 +57,34 @@ async def desactivar_suscripcion(session: AsyncSession, suscripcion_id: int, usu
     session.add(suscripcion)
     await session.commit()
     return True
+
+def avanzar_fecha(fecha: date, periodicidad: str) -> date:
+    # Si el día no existe en el mes destino (31 de enero + 1 mes), cae al último día de ese mes
+    if periodicidad == "anual":
+        anio, mes = fecha.year + 1, fecha.month
+    else:
+        # Si el mes es diciembre, se usa fecha.month // 12 para avanzar a enero del proximo año
+        anio = fecha.year + (fecha.month // 12)
+        # se usa el módulo para sumar 1 al mes si es menos de 12, nuevamente, si es 12 se asigna enero al sumar solo 1
+        mes = fecha.month % 12 + 1
+
+    ultimo_dia = calendar.monthrange(anio, mes)[1]
+    return date(anio, mes, min(fecha.day, ultimo_dia))
+
+async def renovar_suscripcion(session: AsyncSession, suscripcion_id: int, usuario_id: int):
+    suscripcion = await _obtener_suscripcion_del_usuario(session, suscripcion_id, usuario_id)
+
+    if not suscripcion:
+        return None
+
+    # Avanza un ciclo desde la fecha guardada, no desde hoy, para no correr el ciclo de cobro
+    suscripcion.fecha_proximo_cobro = avanzar_fecha(
+        suscripcion.fecha_proximo_cobro, suscripcion.periodicidad
+    )
+    session.add(suscripcion)
+    await session.commit()
+    await session.refresh(suscripcion)
+    return suscripcion
 
 async def calcular_gasto_total(session: AsyncSession, usuario_id: int, moneda_destino: str = "CLP"):
     suscripciones = await obtener_suscripciones_por_usuario(session, usuario_id)

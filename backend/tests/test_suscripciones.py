@@ -1,4 +1,5 @@
 import time
+from datetime import date
 
 
 def test_crear_suscripcion_exitosa(client, usuario_autenticado):
@@ -115,5 +116,93 @@ def test_desactivar_suscripcion_ajena_falla(client, usuario_autenticado):
     headers_b = {"Authorization": f"Bearer {res_login_b.json()['access_token']}"}
 
     response = client.patch(f"/api/suscripciones/{suscripcion_id}/desactivar", headers=headers_b)
+
+    assert response.status_code == 404
+
+
+def test_renovar_suscripcion_mensual(client, usuario_autenticado):
+    headers, _usuario_id = usuario_autenticado
+
+    payload = {
+        "nombre_servicio": "Netflix",
+        "monto_original": 5990.0,
+        "moneda_original": "CLP",
+        "fecha_proximo_cobro": "2026-10-15",
+        "periodicidad": "mensual",
+    }
+    creada = client.post("/api/suscripciones/", json=payload, headers=headers)
+    suscripcion_id = creada.json()["suscripcion_id"]
+
+    response = client.patch(f"/api/suscripciones/{suscripcion_id}/renovar", headers=headers)
+
+    assert response.status_code == 200
+    assert response.json()["fecha_proximo_cobro"] == "2026-11-15"
+
+
+def test_renovar_suscripcion_fin_de_mes(client, usuario_autenticado):
+    """31 de enero + un mes cae al último día de febrero, no falla por día inexistente."""
+    headers, _usuario_id = usuario_autenticado
+
+    payload = {
+        "nombre_servicio": "Gimnasio",
+        "monto_original": 25000.0,
+        "moneda_original": "CLP",
+        "fecha_proximo_cobro": "2026-01-31",
+        "periodicidad": "mensual",
+    }
+    creada = client.post("/api/suscripciones/", json=payload, headers=headers)
+    suscripcion_id = creada.json()["suscripcion_id"]
+
+    response = client.patch(f"/api/suscripciones/{suscripcion_id}/renovar", headers=headers)
+
+    assert response.status_code == 200
+    assert response.json()["fecha_proximo_cobro"] == "2026-02-28"
+
+
+def test_renovar_suscripcion_anual(client, usuario_autenticado):
+    headers, _usuario_id = usuario_autenticado
+
+    payload = {
+        "nombre_servicio": "Dominio web",
+        "monto_original": 12000.0,
+        "moneda_original": "CLP",
+        "fecha_proximo_cobro": "2026-06-10",
+        "periodicidad": "anual",
+    }
+    creada = client.post("/api/suscripciones/", json=payload, headers=headers)
+    suscripcion_id = creada.json()["suscripcion_id"]
+
+    response = client.patch(f"/api/suscripciones/{suscripcion_id}/renovar", headers=headers)
+
+    assert response.status_code == 200
+    assert response.json()["fecha_proximo_cobro"] == "2027-06-10"
+
+
+def test_renovar_suscripcion_ajena_falla(client, usuario_autenticado):
+    headers_a, _usuario_id_a = usuario_autenticado
+
+    payload = {
+        "nombre_servicio": "Apple TV",
+        "monto_original": 3990.0,
+        "moneda_original": "CLP",
+        "fecha_proximo_cobro": date.today().isoformat(),
+        "periodicidad": "mensual",
+    }
+    creada = client.post("/api/suscripciones/", json=payload, headers=headers_a)
+    suscripcion_id = creada.json()["suscripcion_id"]
+
+    email_b = f"intruso_renovar_{int(time.time() * 1000)}@test.com"
+    client.post("/api/usuarios/", json={
+        "nombre": "Usuario Intruso",
+        "email": email_b,
+        "contrasena": "5678",
+    })
+    res_login_b = client.post("/api/usuarios/login", data={
+        "username": email_b,
+        "password": "5678",
+    })
+    headers_b = {"Authorization": f"Bearer {res_login_b.json()['access_token']}"}
+
+    response = client.patch(f"/api/suscripciones/{suscripcion_id}/renovar", headers=headers_b)
 
     assert response.status_code == 404

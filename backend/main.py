@@ -5,6 +5,7 @@ from database import init_db
 from conversion import router as conversion_router
 from usuarios import router as usuarios_router
 from suscripciones import router as suscripciones_router
+from alertas import router as alertas_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -24,6 +25,8 @@ app = FastAPI(
 app.include_router(conversion_router.router)
 app.include_router(usuarios_router.router)
 app.include_router(suscripciones_router.router)
+app.include_router(alertas_router.router)
+
 @app.get("/")
 async def health_check():
     return {"status": "ok", "mensaje": "Servidor FastAPI funcionando con BD y módulos conectados"}
