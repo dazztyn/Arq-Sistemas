@@ -53,6 +53,8 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), session: Async
 @router.get("/perfil")
 async def obtener_perfil_actual(usuario_actual: Usuario = Depends(obtener_usuario_actual)):
     return {
+        "id": usuario_actual.id,
+        "nombre": usuario_actual.nombre,
         "email": usuario_actual.email,
         "rol": usuario_actual.rol
     }

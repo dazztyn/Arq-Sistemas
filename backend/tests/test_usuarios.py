@@ -16,6 +16,19 @@ def test_registro_usuario_nuevo(client):
     assert response.status_code == 200
     assert response.json()["email"] == email_unico
 
+def test_perfil_devuelve_datos_del_usuario(client, usuario_autenticado):
+    headers, usuario_id = usuario_autenticado
+
+    response = client.get("/api/usuarios/perfil", headers=headers)
+
+    assert response.status_code == 200
+    datos = response.json()
+    assert datos["id"] == usuario_id
+    assert datos["nombre"] == "Usuario de Test"
+    assert datos["rol"] == "usuario"
+    assert "@" in datos["email"]
+
+
 def test_registro_usuario_duplicado(client):
     payload = {
         "nombre": "Original",
