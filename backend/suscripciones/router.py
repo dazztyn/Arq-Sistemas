@@ -65,6 +65,32 @@ async def obtener_resumen_gastos(
     }
 
 
+@router.put("/{suscripcion_id}")
+async def actualizar_suscripcion(
+    suscripcion_id: int,
+    suscripcion: SuscripcionRegistro,
+    session: AsyncSession = Depends(get_session),
+    usuario_actual: Usuario = Depends(obtener_usuario_actual),
+):
+    actualizada = await services.actualizar_suscripcion(
+        session=session,
+        suscripcion_id=suscripcion_id,
+        usuario_id=usuario_actual.id,
+        nombre_servicio=suscripcion.nombre_servicio,
+        monto_original=suscripcion.monto_original,
+        moneda_original=suscripcion.moneda_original,
+        fecha_proximo_cobro=suscripcion.fecha_proximo_cobro,
+        periodicidad=suscripcion.periodicidad,
+    )
+    if not actualizada:
+        raise HTTPException(status_code=404, detail="Suscripción no encontrada")
+    return {
+        "mensaje": "Suscripción actualizada",
+        "suscripcion_id": actualizada.id,
+        "servicio": actualizada.nombre_servicio,
+    }
+
+
 @router.patch("/{suscripcion_id}/desactivar")
 async def desactivar_suscripcion(
     suscripcion_id: int,

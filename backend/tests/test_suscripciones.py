@@ -120,6 +120,73 @@ def test_desactivar_suscripcion_ajena_falla(client, usuario_autenticado):
     assert response.status_code == 404
 
 
+def test_editar_suscripcion_propia(client, usuario_autenticado):
+    headers, _usuario_id = usuario_autenticado
+
+    creada = client.post("/api/suscripciones/", json={
+        "nombre_servicio": "Netflix Basico",
+        "monto_original": 5990.0,
+        "moneda_original": "CLP",
+        "fecha_proximo_cobro": "2026-10-15",
+        "periodicidad": "mensual",
+    }, headers=headers)
+    suscripcion_id = creada.json()["suscripcion_id"]
+
+    response = client.put(f"/api/suscripciones/{suscripcion_id}", json={
+        "nombre_servicio": "Netflix Premium",
+        "monto_original": 9990.0,
+        "moneda_original": "CLP",
+        "fecha_proximo_cobro": "2026-11-20",
+        "periodicidad": "anual",
+    }, headers=headers)
+
+    assert response.status_code == 200
+
+    listado = client.get("/api/suscripciones/listar", headers=headers).json()
+    editada = [s for s in listado if s["id"] == suscripcion_id][0]
+    assert editada["nombre_servicio"] == "Netflix Premium"
+    assert editada["monto_original"] == 9990.0
+    assert editada["fecha_proximo_cobro"] == "2026-11-20"
+    assert editada["periodicidad"] == "anual"
+    # El PUT no debe tocar el estado: eso es tarea de /desactivar y /reactivar
+    assert editada["activa"] is True
+
+
+def test_editar_suscripcion_ajena_falla(client, usuario_autenticado):
+    headers_a, _usuario_id_a = usuario_autenticado
+
+    creada = client.post("/api/suscripciones/", json={
+        "nombre_servicio": "Disney+",
+        "monto_original": 4990.0,
+        "moneda_original": "CLP",
+        "fecha_proximo_cobro": "2026-10-15",
+        "periodicidad": "mensual",
+    }, headers=headers_a)
+    suscripcion_id = creada.json()["suscripcion_id"]
+
+    email_b = f"intruso_editar_{int(time.time() * 1000)}@test.com"
+    client.post("/api/usuarios/", json={
+        "nombre": "Usuario Intruso",
+        "email": email_b,
+        "contrasena": "5678",
+    })
+    res_login_b = client.post("/api/usuarios/login", data={
+        "username": email_b,
+        "password": "5678",
+    })
+    headers_b = {"Authorization": f"Bearer {res_login_b.json()['access_token']}"}
+
+    response = client.put(f"/api/suscripciones/{suscripcion_id}", json={
+        "nombre_servicio": "Secuestrada",
+        "monto_original": 1.0,
+        "moneda_original": "CLP",
+        "fecha_proximo_cobro": "2026-12-01",
+        "periodicidad": "mensual",
+    }, headers=headers_b)
+
+    assert response.status_code == 404
+
+
 def test_renovar_suscripcion_mensual(client, usuario_autenticado):
     headers, _usuario_id = usuario_autenticado
 

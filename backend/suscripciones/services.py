@@ -58,6 +58,34 @@ async def desactivar_suscripcion(session: AsyncSession, suscripcion_id: int, usu
     await session.commit()
     return True
 
+async def actualizar_suscripcion(
+    session: AsyncSession,
+    suscripcion_id: int,
+    usuario_id: int,
+    nombre_servicio: str,
+    monto_original: float,
+    moneda_original: str,
+    fecha_proximo_cobro: date,
+    periodicidad: str,
+    ):
+
+    suscripcion = await _obtener_suscripcion_del_usuario(session, suscripcion_id, usuario_id)
+
+    if not suscripcion:
+        return None
+
+    # El estado (activa) se maneja con sus propios endpoints, no por acá
+    suscripcion.nombre_servicio = nombre_servicio
+    suscripcion.monto_original = monto_original
+    suscripcion.moneda_original = moneda_original
+    suscripcion.fecha_proximo_cobro = fecha_proximo_cobro
+    suscripcion.periodicidad = periodicidad
+
+    session.add(suscripcion)
+    await session.commit()
+    await session.refresh(suscripcion)
+    return suscripcion
+
 def avanzar_fecha(fecha: date, periodicidad: str) -> date:
     # Si el día no existe en el mes destino (31 de enero + 1 mes), cae al último día de ese mes
     if periodicidad == "anual":
