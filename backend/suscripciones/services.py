@@ -31,10 +31,16 @@ async def crear_suscripcion(
 
     return nueva_suscripcion
 
-async def obtener_suscripciones_por_usuario(session: AsyncSession, usuario_id: int):
+async def obtener_suscripciones_por_usuario(
+    session: AsyncSession, usuario_id: int, solo_activas: bool = False
+):
 
     # se hace un select a la bd para retornar todas las subs de un usuario
     consulta = select(Suscripcion).where(Suscripcion.usuario_id == usuario_id)
+
+    if solo_activas:
+        consulta = consulta.where(Suscripcion.activa == True)  # noqa: E712 (SQLAlchemy necesita ==, no `is`)
+
     resultado = await session.execute(consulta)
     return resultado.scalars().all()
 
@@ -117,7 +123,8 @@ async def renovar_suscripcion(session: AsyncSession, suscripcion_id: int, usuari
     return suscripcion
 
 async def calcular_gasto_total(session: AsyncSession, usuario_id: int, moneda_destino: str = "CLP"):
-    suscripciones = await obtener_suscripciones_por_usuario(session, usuario_id)
+    # Una suscripción cancelada ya no se cobra, así que no debe sumar al gasto mensual
+    suscripciones = await obtener_suscripciones_por_usuario(session, usuario_id, solo_activas=True)
     total_gastado = 0.0
     
     for sub in suscripciones:

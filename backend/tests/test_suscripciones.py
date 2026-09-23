@@ -120,6 +120,31 @@ def test_desactivar_suscripcion_ajena_falla(client, usuario_autenticado):
     assert response.status_code == 404
 
 
+def test_resumen_excluye_suscripciones_desactivadas(client, usuario_autenticado):
+    headers, _usuario_id = usuario_autenticado
+
+    def crear(nombre, monto):
+        respuesta = client.post("/api/suscripciones/", json={
+            "nombre_servicio": nombre,
+            "monto_original": monto,
+            "moneda_original": "CLP",
+            "fecha_proximo_cobro": "2026-10-15",
+            "periodicidad": "mensual",
+        }, headers=headers)
+        return respuesta.json()["suscripcion_id"]
+
+    crear("Activa", 10000.0)
+    id_cancelada = crear("Cancelada", 7000.0)
+
+    total_con_ambas = client.get("/api/suscripciones/resumen?moneda=CLP", headers=headers).json()
+    assert total_con_ambas["gasto_total_mensual"] == 17000.0
+
+    client.patch(f"/api/suscripciones/{id_cancelada}/desactivar", headers=headers)
+
+    total_sin_cancelada = client.get("/api/suscripciones/resumen?moneda=CLP", headers=headers).json()
+    assert total_sin_cancelada["gasto_total_mensual"] == 10000.0
+
+
 def test_reactivar_suscripcion_propia(client, usuario_autenticado):
     headers, _usuario_id = usuario_autenticado
 
