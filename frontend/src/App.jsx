@@ -5,7 +5,6 @@ import Landing from "./pages/Landing"
 import Dashboard from "./pages/Dashboard";
 import NotFound from "./pages/NotFound";
 import Register from "./pages/Register";
-import Review from "./Review";
 
 function App() {
   return (
@@ -24,7 +23,6 @@ function App() {
       />
 
       <Route path="*" element={<NotFound />} />
-      <Route path="/review" element={<Review />} />
       
     </Routes>
   )
