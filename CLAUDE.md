@@ -165,3 +165,4 @@ Ordenada por impacto en la nota:
 - Si se agrega un módulo de dominio, agregar sus tests en `backend/tests/` — el coverage mínimo es parte de la nota.
 - No introducir dependencias fuera del stack de la sección 3.
 - **Nada de credenciales ni URLs en el código**: toda configuración pasa por `config.py`. Al agregar una variable, sumarla a `.env.example` y al bloque `env:` de [ci.yml](.github/workflows/ci.yml), o el pipeline se cae.
+- **Autoría de los commits**: `.claude/settings.json` deja `attribution` en vacío, así que los commits no llevan líneas de `Co-Authored-By` ni de sesión. Eso no cubre el campo `author` de git, que sale de la config del entorno: en una sesión en la nube el contenedor arranca con la identidad de Claude, así que **antes del primer commit** hay que fijarla con `git config user.name "Vicente Ruiz Escobar"` y `git config user.email "greatdazz3@gmail.com"` (no se versiona, se pierde con el contenedor).

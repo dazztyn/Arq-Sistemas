@@ -9,3 +9,7 @@ frontend/dist/
 
 # Variables de entorno
 .env
+
+# Claude Code: los permisos locales son de cada máquina.
+# El .claude/settings.json del proyecto sí se versiona.
+.claude/settings.local.json
