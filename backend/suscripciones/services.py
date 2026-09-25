@@ -122,21 +122,36 @@ async def renovar_suscripcion(session: AsyncSession, suscripcion_id: int, usuari
     await session.refresh(suscripcion)
     return suscripcion
 
+MESES_POR_ANIO = 12
+
+def monto_mensual(monto: float, periodicidad: str) -> float:
+    # Una suscripción anual se cobra una vez al año, así que al gasto MENSUAL aporta
+    # solo su doceava parte. Sin prorratear, una anual de 120.000 se contaba como si
+    # se pagara todos los meses e inflaba el total.
+    if periodicidad == "anual":
+        return monto / MESES_POR_ANIO
+
+    return monto
+
 async def calcular_gasto_total(session: AsyncSession, usuario_id: int, moneda_destino: str = "CLP"):
     # Una suscripción cancelada ya no se cobra, así que no debe sumar al gasto mensual
     suscripciones = await obtener_suscripciones_por_usuario(session, usuario_id, solo_activas=True)
     total_gastado = 0.0
-    
+
     for sub in suscripciones:
+        # Se prorratea antes de convertir: la conversión es lineal, así que da lo mismo
+        # el orden, pero así hay un solo lugar donde se aplica la periodicidad
+        monto = monto_mensual(sub.monto_original, sub.periodicidad)
+
         if sub.moneda_original == moneda_destino:
-            total_gastado += sub.monto_original
+            total_gastado += monto
         else:
             resultado_conversion = await convertir_moneda(
-                monto=sub.monto_original,
+                monto=monto,
                 moneda_origen=sub.moneda_original,
                 moneda_destino=moneda_destino
             )
             # Como tu función devuelve directamente un float (el monto), lo sumamos
             total_gastado += resultado_conversion
-            
+
     return round(total_gastado, 2)

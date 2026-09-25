@@ -8,7 +8,7 @@ Mini app-web monolítica que permite gestionar suscripciones a distintos servici
    Sistema de registro y autenticación basado en **JSON Web Tokens**. Cada usuario tiene un entorno privado y seguro para agregar, listar y gestionar sus suscripciones o gastos mensuales asignando montos, monedas de origen y fechas de cobro. 
 
 2. **Motor de Conversión y Resumen Financiero:** 
-   El sistema unifica los gastos del usuario cruzando la información de sus suscripciones con una API externa de divisas (`exchangerate-api`). La cuál permite calcular el gasto total  en una moneda unificada (por ejemplo, convirtiendo los cobros en USD a CLP de forma automática y en tiempo real).
+   El sistema unifica los gastos del usuario cruzando la información de sus suscripciones con una API externa de divisas (`exchangerate-api`). La cuál permite calcular el gasto total  en una moneda unificada (por ejemplo, convirtiendo los cobros en USD a CLP de forma automática y en tiempo real). Como el total es **mensual**, las suscripciones anuales aportan solo su doceava parte.
 
 3. **Sistema de Alertas de Cobro:**
    Informa qué suscripciones se cobran dentro de una ventana configurable de días (por defecto 7, hacia adelante y hacia atrás), indicando cuántos días faltan, el monto convertido a la moneda elegida y si el cobro ya venció. Las alertas se calculan al momento de la consulta a partir de la fecha de próximo cobro, y tras un cobro la suscripción se pone al día con el endpoint de renovación, que avanza la fecha un ciclo según su periodicidad (mensual o anual).
@@ -103,7 +103,7 @@ La API quedará disponible en http://127.0.0.1:8000.
 | `POST` | `/api/suscripciones/` | Registra una nueva suscripción para el usuario autenticado (`nombre_servicio`, `monto_original`, `moneda_original`, `fecha_proximo_cobro`, `periodicidad`) | Sí |
 | `PUT` | `/api/suscripciones/{id}` | Edita una suscripción propia (mismo body que el registro) | Sí |
 | `GET` | `/api/suscripciones/listar` | Lista todas las suscripciones registradas del usuario | Sí |
-| `GET` | `/api/suscripciones/resumen` | Retorna el total mensual consolidado con conversión (solo suscripciones activas) | Sí |
+| `GET` | `/api/suscripciones/resumen` | Retorna el total mensual consolidado con conversión (solo suscripciones activas; las anuales se prorratean a 1/12) | Sí |
 | `PATCH` | `/api/suscripciones/{id}/desactivar` | Marca una suscripción propia como inactiva | Sí |
 | `PATCH` | `/api/suscripciones/{id}/reactivar` | Vuelve a marcar una suscripción propia como activa | Sí |
 | `PATCH` | `/api/suscripciones/{id}/renovar` | Avanza la fecha de cobro un ciclo según su periodicidad | Sí |

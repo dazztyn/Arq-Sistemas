@@ -37,6 +37,8 @@ La app permite **controlar gastos recurrentes en suscripciones**, unificando mon
 ### 2.2 Motor de conversión y resumen financiero
 - Cruza las suscripciones del usuario con la API externa de divisas (`exchangerate-api`).
 - Calcula el **gasto total mensual en una moneda unificada** (ej. convertir cobros en USD a CLP en tiempo real).
+- El total es **mensual**, así que una suscripción `anual` aporta `monto / 12` (`monto_mensual()` en `suscripciones/services.py`). Se prorratea *antes* de convertir: la conversión es lineal, así que el orden da igual, pero así la periodicidad se aplica en un solo lugar.
+- Si la API de divisas responde con un error HTTP, `convertir_moneda` lo traduce a 400 (moneda de origen desconocida, la API devuelve 404) o 503 (falla del servicio). Nunca deja escapar la excepción de `httpx`.
 
 ### 2.3 Sistema de alertas
 - Implementado en `backend/alertas/` como endpoint **on-demand**: el frontend consulta `GET /api/alertas/proximas` y muestra el aviso; no hay scheduler ni envío de correos.
@@ -55,7 +57,7 @@ La app permite **controlar gastos recurrentes en suscripciones**, unificando mon
 | `POST` | `/api/suscripciones/` | Registra una suscripción (usuario derivado del token; recibe `periodicidad`) | Sí |
 | `PUT` | `/api/suscripciones/{id}` | Edita una suscripción propia (mismo body que el registro; no toca `activa`) | Sí |
 | `GET` | `/api/suscripciones/listar` | Lista las suscripciones del usuario (activas e inactivas) | Sí |
-| `GET` | `/api/suscripciones/resumen` | Total mensual consolidado con conversión, **solo activas** (`?moneda=CLP`) | Sí |
+| `GET` | `/api/suscripciones/resumen` | Total mensual consolidado con conversión, **solo activas**, anuales prorrateadas a 1/12 (`?moneda=CLP`) | Sí |
 | `PATCH` | `/api/suscripciones/{id}/desactivar` | Marca una suscripción propia como `activa=false` | Sí |
 | `PATCH` | `/api/suscripciones/{id}/reactivar` | Vuelve a marcarla como `activa=true` | Sí |
 | `PATCH` | `/api/suscripciones/{id}/renovar` | Avanza `fecha_proximo_cobro` un ciclo según `periodicidad` | Sí |
@@ -149,6 +151,10 @@ Ordenada por impacto en la nota:
 8. El coverage reportado (98%) incluye los propios archivos de test, que siempre dan 100%; sin ellos el número real es más bajo. Se puede afinar con un `.coveragerc` que los excluya.
 9. ~~`security.py` capturaba `except jwt.JWTError`~~ — **corregido** (rama `fix-bugs`): esa excepción no existe en PyJWT (es de `python-jose`), así que un token malformado no expirado producía un `AttributeError` no capturado → 500 en vez de 401. Ahora captura `jwt.PyJWTError`.
 10. Contraseñas con SHA-256 sin salt (`usuarios/services.py`), comparación no constant-time. Conocido, fuera de alcance de `fix-bugs` — requiere migrar a una librería tipo `passlib`/`bcrypt`, cambio más grande.
+11. ~~`/resumen` sumaba las suscripciones anuales completas al total **mensual**~~ — **corregido** (rama `fixes-backend-2te2vt`): una anual de 120.000 se contaba como 120.000/mes. Ahora se prorratea con `monto_mensual()`. Cubierto por `test_resumen_prorratea_las_anuales`.
+12. ~~`convertir_moneda` no capturaba `httpx.HTTPStatusError`~~ — **corregido** (rama `fixes-backend-2te2vt`): `raise_for_status()` lanza esa excepción, que **no** es subclase de `RequestError` (ambas cuelgan de `httpx.HTTPError`), así que un error HTTP de la API se escapaba y el backend devolvía 500. De paso rompía la resiliencia de las alertas, porque `alertas/_convertir_monto` solo atrapa `HTTPException`.
+13. **Una llamada HTTP por suscripción** en `calcular_gasto_total` y en las alertas: si el usuario tiene 10 suscripciones en USD se piden 10 veces la misma tasa, en serie y sin caché. Con pocos datos no se nota, pero es la optimización obvia (agrupar por moneda o pedir las tasas de la moneda destino una sola vez).
+14. **Registro con condición de carrera**: `crear_usuario` consulta y después inserta, sin capturar `IntegrityError`. Dos registros simultáneos con el mismo email dan 500 en vez de 400. La restricción `unique` de la BD igual protege el dato.
 
 ---
 
