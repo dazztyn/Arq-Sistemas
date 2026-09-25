@@ -15,10 +15,10 @@ Mini app-web monolítica que permite gestionar suscripciones a distintos servici
 
 ## Stack Tecnológico
 
-* **Frameworks:** FastAPI (Python), React (TypeScript)
-* **ORM & Base de Datos:** SQLModel, PostgreSQL
+* **Frameworks:** FastAPI (Python), React sobre Vite (JavaScript / JSX)
+* **ORM & Base de Datos:** SQLModel + SQLAlchemy async, PostgreSQL (driver `asyncpg`)
 * **Autenticación:** OAuth2 con PyJWT (Hashed passwords con SHA-256)
-* **Testing & CI/CD:** Pytest (98% de cobertura) y GitHub Actions con base de datos de prueba en la nube.
+* **Testing & CI:** Pytest + pytest-cov y Ruff como linter, sobre GitHub Actions con PostgreSQL levantado como servicio del runner. El pipeline exige un mínimo de 60% de cobertura (`--cov-fail-under=60`) y construye la imagen Docker del backend.
 * **Integraciones:** Consumo de APIs REST asíncronas con `httpx`.
 
 ## Ejecución con Docker (recomendado)
@@ -45,7 +45,7 @@ docker compose up -d --build
 ### 1. **Clonar el repositorio y entrar a la carpeta:**
  ```bash
  git clone <URL_DEL_REPOSITORIO>
- cd backend
+ cd Arq-Sistemas/backend
 ```
 
 ### 2. **Crear y activar entorno virtual:**
@@ -62,6 +62,9 @@ source .venv/bin/activate
 ### 3. **Instalar dependencias:**
 ```bash
 pip install -r requirements.txt
+
+# Para correr los tests y el linter, usa el archivo de desarrollo:
+pip install -r requirements-dev.txt
 ```
 
 ### 4. **Variables de Entorno:**
@@ -112,3 +115,9 @@ La API quedará disponible en http://127.0.0.1:8000.
 | Método | Endpoint | Descripción | Requiere Token |
 |:---|:---|:---|:---:|
 | `GET` | `/api/alertas/proximas` | Cobros dentro de la ventana `±dias` (`?dias=7&moneda=CLP`), con monto convertido y marca de vencido | Sí |
+
+### Conversión y estado:
+| Método | Endpoint | Descripción | Requiere Token |
+|:---|:---|:---|:---:|
+| `GET` | `/api/conversion/` | Conversión puntual de un monto (`?monto=100&origen=USD&destino=CLP`) | No |
+| `GET` | `/` | Health check de la API | No |
