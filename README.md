@@ -18,7 +18,7 @@ Mini app-web monolítica que permite gestionar suscripciones a distintos servici
 * **Frameworks:** FastAPI (Python), React (TypeScript)
 * **ORM & Base de Datos:** SQLModel, PostgreSQL
 * **Autenticación:** OAuth2 con PyJWT (Hashed passwords con SHA-256)
-* **Testing & CI/CD:** Pytest (85% de cobertura) y GitHub Actions con base de datos de prueba en la nube.
+* **Testing & CI/CD:** Pytest (98% de cobertura) y GitHub Actions con base de datos de prueba en la nube.
 * **Integraciones:** Consumo de APIs REST asíncronas con `httpx`.
 
 ## Ejecución con Docker (recomendado)
@@ -74,7 +74,9 @@ DATABASE_URL=postgresql+asyncpg://user:password@localhost:5432/suscripciones_db
 SECRET_KEY=<genera la tuya>
 ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=60
+CORS_ORIGINS=http://localhost:5173
 ```
+`CORS_ORIGINS` define desde qué orígenes puede llamar el navegador a la API (varios se separan por coma). El valor por defecto es el puerto de desarrollo de Vite.
 `SECRET_KEY` es obligatoria y no tiene valor por defecto: si falta, la aplicación no arranca. Genera una con:
 ```bash
 python -c "import secrets; print(secrets.token_hex(32))"
@@ -93,15 +95,17 @@ La API quedará disponible en http://127.0.0.1:8000.
 |:---|:---|:---|:---:|
 | `POST` | `/api/usuarios/` | Registro de un nuevo usuario | No |
 | `POST` | `/api/usuarios/login` | Login (form-data) que retorna el Bearer JWT | No |
-| `GET` | `/api/usuarios/perfil` | Retorna los datos del usuario actual autenticado | Sí |
+| `GET` | `/api/usuarios/perfil` | Retorna los datos del usuario autenticado (`id`, `nombre`, `email`, `rol`) | Sí |
 
 ### Suscripciones:
 | Método | Endpoint | Descripción | Requiere Token |
 |:---|:---|:---|:---:|
 | `POST` | `/api/suscripciones/` | Registra una nueva suscripción para el usuario autenticado (`nombre_servicio`, `monto_original`, `moneda_original`, `fecha_proximo_cobro`, `periodicidad`) | Sí |
+| `PUT` | `/api/suscripciones/{id}` | Edita una suscripción propia (mismo body que el registro) | Sí |
 | `GET` | `/api/suscripciones/listar` | Lista todas las suscripciones registradas del usuario | Sí |
-| `GET` | `/api/suscripciones/resumen` | Retorna el total mensual consolidado con conversión | Sí |
+| `GET` | `/api/suscripciones/resumen` | Retorna el total mensual consolidado con conversión (solo suscripciones activas) | Sí |
 | `PATCH` | `/api/suscripciones/{id}/desactivar` | Marca una suscripción propia como inactiva | Sí |
+| `PATCH` | `/api/suscripciones/{id}/reactivar` | Vuelve a marcar una suscripción propia como activa | Sí |
 | `PATCH` | `/api/suscripciones/{id}/renovar` | Avanza la fecha de cobro un ciclo según su periodicidad | Sí |
 
 ### Alertas:
