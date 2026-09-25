@@ -1,11 +1,14 @@
 import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useAuth } from "../utils/useAuth";
 
 function Login() {
+  const location = useLocation();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
+  // Cuando el token expira, el hook redirige acá con el motivo: sin esto el
+  // usuario volvería al login sin saber por qué lo sacaron.
+  const [error, setError] = useState(location.state?.mensaje || "");
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const { login } = useAuth();

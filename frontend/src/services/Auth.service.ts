@@ -14,11 +14,15 @@ interface RespuestaLogin {
 }
 
 interface PerfilUsuario {
+	id: number;
+	nombre: string;
 	email: string;
 	rol: string;
 }
 
-const API_URL = import.meta.env.VITE_API_URL;
+// Mismo fallback que en Subscripciones.service: sin él, un .env ausente produce
+// llamadas a "undefined/api/..." que fallan sin explicar la causa.
+const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 
 async function obtenerError(response: Response): Promise<string> {
 	try {

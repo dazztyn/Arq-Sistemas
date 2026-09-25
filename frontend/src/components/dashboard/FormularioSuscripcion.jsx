@@ -53,10 +53,10 @@ function FormularioSuscripcion({
               onChange={handleChange}
               className="w-full rounded-xl bg-fondo px-3 py-2 text-texto outline-none focus:border-emerald-500"
             >
+              <option value="CLP">CLP</option>
               <option value="USD">USD</option>
               <option value="EUR">EUR</option>
               <option value="GBP">GBP</option>
-              <option value="CLP">CLP</option>
               <option value="COP">COP</option>
               <option value="MXN">MXN</option>
             </select>
@@ -68,6 +68,8 @@ function FormularioSuscripcion({
             <label className="mb-1 block text-sm text-texto">
               Frecuencia de cobro
             </label>
+            {/* Solo las dos periodicidades que soporta la API. Antes había cuatro
+                y las otras dos se guardaban como "mensual" sin avisar al usuario. */}
             <select
               name="frequency"
               value={form.frequency}
@@ -75,44 +77,25 @@ function FormularioSuscripcion({
               className="w-full rounded-xl bg-fondo px-3 py-2 text-texto outline-none focus:border-emerald-500"
             >
               <option value="Mensual">Mensual</option>
-              <option value="Trimestral">Trimestral</option>
               <option value="Anual">Anual</option>
-              <option value="Quincenal">Quincenal</option>
             </select>
           </div>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <label className="mb-1 block text-sm text-texto">
-              Día de facturación
-            </label>
-            <input
-              type="number"
-              min="1"
-              max="31"
-              name="billingDay"
-              value={form.billingDay}
-              onChange={handleChange}
-              className="w-full rounded-xl bg-fondo px-3 py-2 text-texto outline-none focus:border-emerald-500"
-              required
-            />
-          </div>
-
-          <div className="flex items-end">
-            <label className="flex w-full cursor-pointer items-center justify-between rounded-xl  bg-fondo px-3 py-2">
-              <span className="text-sm text-texto">
-                Suscripción activa
-              </span>
-              <input
-                type="checkbox"
-                name="isActive"
-                checked={form.isActive}
-                onChange={handleChange}
-                className="h-5 w-5 accent-emerald-500"
-              />
-            </label>
-          </div>
+        <div>
+          {/* Fecha completa, no solo el día: el backend guarda la fecha exacta del
+              próximo cobro, y con un día suelto se perdía el mes al editar. */}
+          <label className="mb-1 block text-sm text-texto">
+            Próxima fecha de cobro
+          </label>
+          <input
+            type="date"
+            name="fecha"
+            value={form.fecha}
+            onChange={handleChange}
+            className="w-full rounded-xl bg-fondo px-3 py-2 text-texto outline-none focus:border-emerald-500"
+            required
+          />
         </div>
 
         <div className="flex gap-3 pt-2">

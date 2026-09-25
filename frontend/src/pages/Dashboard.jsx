@@ -1,4 +1,5 @@
 import { useSubscriptions } from "../hooks/useSubscriptions";
+import { useAuth } from "../utils/useAuth";
 import Navbar from "../components/Navbar";
 import CifraCard from "../components/dashboard/CifraCard";
 import GraphCard from "../components/dashboard/GraphCard";
@@ -8,11 +9,13 @@ import ListaSuscripcion from "../components/dashboard/ListaSuscripcion";
 
 
 function Dashboard() {
+  const { user } = useAuth();
   const {
     totalMonthlySpend,
-    projectedSpend,
+    pendienteEsteMes,
     activeSubscriptions,
     upcomingCharges,
+    diasAlerta,
     subscriptions,
     form,
     handleChange,
@@ -20,6 +23,7 @@ function Dashboard() {
     resetForm,
     handleEdit,
     toggleSubscription,
+    renovarCobro,
     isLoading,
     error,
   } = useSubscriptions();
@@ -34,6 +38,9 @@ function Dashboard() {
               <h1 className="mt-1 text-3xl font-bold text-texto">
                 Dashboard de gastos
               </h1>
+              {user?.nombre && (
+                <p className="mt-1 text-sm text-texto-dim">Hola, {user.nombre}</p>
+              )}
             </div>
           </header>
 
@@ -48,13 +55,19 @@ function Dashboard() {
           )}
 
           <section className="grid gap-4 md:grid-cols-2">
-            <CifraCard texto="Gasto del mes" numero={totalMonthlySpend} />
-            <CifraCard texto="Gasto proyectado" numero={projectedSpend} />
+            {/* El total viene de /api/suscripciones/resumen, no se recalcula acá:
+                es la misma cifra que entrega la API, con las anuales prorrateadas. */}
+            <CifraCard texto="Gasto mensual" numero={totalMonthlySpend} />
+            <CifraCard texto="Pendiente este mes" numero={pendienteEsteMes} />
           </section>
 
           <section className="mt-8 grid gap-6 xl:grid-cols-[1.3fr_0.7fr]">
             <GraphCard subscriptions={activeSubscriptions}/>
-            <ProximosCobros upcomingCharges={upcomingCharges}/>
+            <ProximosCobros
+              upcomingCharges={upcomingCharges}
+              diasAlerta={diasAlerta}
+              renovarCobro={renovarCobro}
+            />
           </section>
 
           <section className="mt-8 grid gap-6 xl:grid-cols-[0.92fr_1.08fr]">

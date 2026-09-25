@@ -21,7 +21,11 @@ function ListaSuscripcion({ subscriptions, handleEdit, toggleSubscription }) {
               <div>
                 <p className="font-bold text-texto">{item.name}</p>
                 <p className="text-xs text-texto-dim">
-                  {item.frequency} • Día {item.billingDay}
+                  {item.frequency} • {item.nextBillingDate.toLocaleDateString("es-CL", {
+                    day: "numeric",
+                    month: "short",
+                    year: "numeric",
+                  })}
                 </p>
               </div>
 
@@ -48,8 +52,10 @@ function ListaSuscripcion({ subscriptions, handleEdit, toggleSubscription }) {
                 Editar
               </button>
 
+              {/* La etiqueta sigue al estado: antes decía siempre "Desactivar"
+                  aunque la suscripción ya estuviera desactivada. */}
               <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-texto">
-                <span>Desactivar</span>
+                <span>{item.isActive ? "Desactivar" : "Reactivar"}</span>
                 <input
                   type="checkbox"
                   checked={!item.isActive}
