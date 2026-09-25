@@ -1,0 +1,104 @@
+# ═══════════════════════════════════════════════════════════════════════════
+#  BORRADOR de Continuous Deployment a Railway — TODAVÍA NO ESTÁ ACTIVO.
+#
+#  GitHub Actions solo toma archivos .yml / .yaml, así que mientras tenga la
+#  extensión .ejemplo este workflow no corre. Para activarlo, renombrarlo a
+#  cd.yml y completar antes los 4 pasos de la checklist del final.
+# ═══════════════════════════════════════════════════════════════════════════
+
+name: CD — Despliegue a Railway
+
+# Se encadena al CI en vez de escuchar el push directo: así el despliegue solo
+# ocurre si los tests y el lint pasaron. Escuchando el push, ambos workflows
+# arrancarían en paralelo y se podría publicar código con los tests en rojo.
+#
+# OJO: el nombre de abajo tiene que ser IDÉNTICO al `name:` de ci.yml. Hoy ese
+# nombre termina con un espacio en blanco ("Continua "), y el match es literal:
+# si no calza, este workflow nunca se dispara y no avisa. Conviene sacarle el
+# espacio a ci.yml y dejar los dos nombres limpios.
+on:
+  workflow_run:
+    workflows: ["CI — Integración Continua"]
+    types: [completed]
+    branches: [master]
+
+concurrency:
+  group: cd-railway
+  cancel-in-progress: false # nunca cortar un despliegue a medias
+
+permissions:
+  contents: read
+
+jobs:
+  desplegar:
+    name: Desplegar backend
+    runs-on: ubuntu-latest
+
+    # workflow_run se dispara aunque el CI haya fallado, así que hay que
+    # filtrar el resultado acá o se desplegaría igual con los tests rojos.
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # workflow_run NO hereda el commit del workflow anterior: por defecto
+          # tomaría la punta de master, que puede tener commits más nuevos sin
+          # testear. Con head_sha se despliega exactamente lo que pasó el CI.
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Configurar Node
+        # La CLI de Railway se distribuye por npm, por eso hace falta Node
+        # aunque el proyecto que se despliega sea Python.
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Instalar la CLI de Railway
+        run: npm install -g @railway/cli
+
+      - name: Desplegar el backend
+        # Se sube solo backend/ (ahí está el Dockerfile). --detach hace que el
+        # paso termine al encolar el build en vez de quedar esperando los logs.
+        working-directory: backend
+        run: railway up --service "${{ vars.RAILWAY_SERVICE }}" --detach
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  ANTES DE ACTIVARLO
+# ═══════════════════════════════════════════════════════════════════════════
+#
+#  1. EL PUERTO DEL DOCKERFILE (si no, el deploy "funciona" pero la URL da 502)
+#     Railway enruta al puerto que inyecta en la variable PORT, y el CMD actual
+#     fija 8000 a mano. Hay que dejarlo tomar la variable, manteniendo 8000 como
+#     default para que docker-compose y el desarrollo local sigan igual:
+#
+#         CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+#
+#     (forma shell, no exec: en la forma exec ${PORT} no se expande, se pasa
+#     como texto literal y uvicorn revienta al parsearlo)
+#
+#  2. SECRETS Y VARIABLES DEL REPO (Settings → Secrets and variables → Actions)
+#       - secrets.RAILWAY_TOKEN  → token de proyecto, desde Railway
+#       - vars.RAILWAY_SERVICE   → nombre del servicio en Railway (ej. "backend")
+#
+#  3. VARIABLES DE ENTORNO EN RAILWAY (no en GitHub: las lee la app al arrancar)
+#       - DATABASE_URL   → la del Postgres de Railway, pero con el driver async:
+#                          postgresql+asyncpg://...  (Railway la entrega como
+#                          postgresql://..., y con ese prefijo SQLAlchemy usa el
+#                          driver sync y la app no levanta)
+#       - SECRET_KEY     → una nueva, NO la del .env local ni la de ci.yml
+#       - ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES
+#       - CORS_ORIGINS   → la URL pública del frontend. Es la que más se olvida:
+#                          como config.py le da un default, el backend arranca
+#                          igual y el error recién aparece en la consola del
+#                          navegador, no en los logs del servidor.
+#
+#  4. DESACTIVAR EL AUTO-DEPLOY NATIVO DE RAILWAY
+#     Si el servicio quedó conectado al repo de GitHub, Railway ya despliega
+#     solo en cada push, sin esperar al CI. Con este workflow encima se
+#     despliega dos veces y una de ellas se salta los tests, que es justo lo
+#     que el ramo pide evitar. Hay que dejar uno de los dos: o el nativo, o este.
+# ═══════════════════════════════════════════════════════════════════════════
