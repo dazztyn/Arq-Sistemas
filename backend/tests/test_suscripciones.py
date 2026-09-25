@@ -145,6 +145,29 @@ def test_resumen_excluye_suscripciones_desactivadas(client, usuario_autenticado)
     assert total_sin_cancelada["gasto_total_mensual"] == 10000.0
 
 
+def test_resumen_prorratea_las_anuales(client, usuario_autenticado):
+    # Se usa CLP como origen y destino a propósito: así la conversión se salta y el
+    # test no depende de la API externa, queda aislada la aritmética de periodicidad
+    headers, _usuario_id = usuario_autenticado
+
+    def crear(nombre, monto, periodicidad):
+        client.post("/api/suscripciones/", json={
+            "nombre_servicio": nombre,
+            "monto_original": monto,
+            "moneda_original": "CLP",
+            "fecha_proximo_cobro": "2026-10-15",
+            "periodicidad": periodicidad,
+        }, headers=headers)
+
+    crear("Plan mensual", 10000.0, "mensual")
+    crear("Plan anual", 120000.0, "anual")
+
+    resumen = client.get("/api/suscripciones/resumen?moneda=CLP", headers=headers).json()
+
+    # La anual aporta 120.000 / 12 = 10.000 al mes, no los 120.000 completos
+    assert resumen["gasto_total_mensual"] == 20000.0
+
+
 def test_reactivar_suscripcion_propia(client, usuario_autenticado):
     headers, _usuario_id = usuario_autenticado
 
