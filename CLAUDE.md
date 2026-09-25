@@ -13,7 +13,7 @@ Son requisitos de **nota**, no opcionales. Antes de dar por cerrada una entrega,
 |:--|:---|:---|
 | 1 | Arquitectura **monolito**: un frontend + un backend, comunicados por REST, GraphQL o WebSockets (se pueden combinar) | ✅ Frontend React + backend FastAPI vía **REST** |
 | 2 | **Backend dockerizado** | ✅ `backend/Dockerfile` + servicio `backend` en `docker-compose.yml`; el CI construye la imagen |
-| 3 | **Coverage del backend ≥ 60%** | ✅ 85% (17-09-2026, 6 tests), con `--cov-fail-under=60` exigido en el CI |
+| 3 | **Coverage del backend ≥ 60%** | ✅ 98% (23-09-2026, 31 tests), con `--cov-fail-under=60` exigido en el CI |
 | 4 | El proyecto debe funcionar **100%** según lo inscrito con el profesor (si no, nota máxima 3,9) | ⚠️ Frontend sigue siendo el boilerplate de Vite |
 | 5 | Respetar el **stack tecnológico inscrito** | ✅ Ver sección 3 |
 | 6 | **Pipeline en GitHub Actions** que como mínimo ejecute los tests (deseable: auto-deploy a un servicio gratuito) | ⚠️ CI corre lint, tests con coverage y build de la imagen; falta el auto-deploy |
@@ -31,10 +31,14 @@ La app permite **controlar gastos recurrentes en suscripciones**, unificando mon
 - Registro y autenticación con **JSON Web Tokens** (OAuth2 password flow).
 - Cada usuario tiene un entorno privado: solo ve y gestiona *sus* suscripciones — el `usuario_id` siempre se deriva del token vía `dependencies.obtener_usuario_actual`, nunca del body de la petición.
 - Una suscripción tiene: nombre del servicio, monto, moneda de origen, fecha de próximo cobro, `activa` (bool, default `true`) y `periodicidad` (`"mensual"` o `"anual"`).
+- Ciclo de vida completo: crear, editar (`PUT`, reemplazo completo de los 5 campos editables), desactivar y reactivar. El campo `activa` **solo** se cambia por sus endpoints dedicados, nunca por el `PUT`, para que haya una sola forma de hacer cada cosa.
+- El navegador solo puede llamar a la API desde los orígenes de `CORS_ORIGINS` (ver §3). El token viaja en el header `Authorization`, no en cookies, por eso el middleware no habilita credenciales.
 
 ### 2.2 Motor de conversión y resumen financiero
 - Cruza las suscripciones del usuario con la API externa de divisas (`exchangerate-api`).
 - Calcula el **gasto total mensual en una moneda unificada** (ej. convertir cobros en USD a CLP en tiempo real).
+- El total es **mensual**, así que una suscripción `anual` aporta `monto / 12` (`monto_mensual()` en `suscripciones/services.py`). Se prorratea *antes* de convertir: la conversión es lineal, así que el orden da igual, pero así la periodicidad se aplica en un solo lugar.
+- Si la API de divisas responde con un error HTTP, `convertir_moneda` lo traduce a 400 (moneda de origen desconocida, la API devuelve 404) o 503 (falla del servicio). Nunca deja escapar la excepción de `httpx`.
 
 ### 2.3 Sistema de alertas
 - Implementado en `backend/alertas/` como endpoint **on-demand**: el frontend consulta `GET /api/alertas/proximas` y muestra el aviso; no hay scheduler ni envío de correos.
@@ -49,11 +53,13 @@ La app permite **controlar gastos recurrentes en suscripciones**, unificando mon
 |:---|:---|:---|:---:|
 | `POST` | `/api/usuarios/` | Registro de usuario | No |
 | `POST` | `/api/usuarios/login` | Login (form-data), retorna Bearer JWT | No |
-| `GET` | `/api/usuarios/perfil` | Datos del usuario autenticado | Sí |
+| `GET` | `/api/usuarios/perfil` | Datos del usuario autenticado (`id`, `nombre`, `email`, `rol`) | Sí |
 | `POST` | `/api/suscripciones/` | Registra una suscripción (usuario derivado del token; recibe `periodicidad`) | Sí |
-| `GET` | `/api/suscripciones/listar` | Lista las suscripciones del usuario | Sí |
-| `GET` | `/api/suscripciones/resumen` | Total mensual consolidado con conversión (`?moneda=CLP`) | Sí |
+| `PUT` | `/api/suscripciones/{id}` | Edita una suscripción propia (mismo body que el registro; no toca `activa`) | Sí |
+| `GET` | `/api/suscripciones/listar` | Lista las suscripciones del usuario (activas e inactivas) | Sí |
+| `GET` | `/api/suscripciones/resumen` | Total mensual consolidado con conversión, **solo activas**, anuales prorrateadas a 1/12 (`?moneda=CLP`) | Sí |
 | `PATCH` | `/api/suscripciones/{id}/desactivar` | Marca una suscripción propia como `activa=false` | Sí |
+| `PATCH` | `/api/suscripciones/{id}/reactivar` | Vuelve a marcarla como `activa=true` | Sí |
 | `PATCH` | `/api/suscripciones/{id}/renovar` | Avanza `fecha_proximo_cobro` un ciclo según `periodicidad` | Sí |
 | `GET` | `/api/alertas/proximas` | Cobros dentro de la ventana `±dias` (`?dias=7&moneda=CLP`) | Sí |
 | `GET` | `/api/conversion/` | Conversión puntual de un monto | No |
@@ -81,7 +87,7 @@ backend/
   .dockerignore     # deja fuera .env, .venv y artefactos de tests
   main.py           # app FastAPI, lifespan que crea tablas, monta routers
   models.py         # Usuario, Suscripcion (SQLModel)
-  config.py         # carga el .env y expone la configuración; único lugar que lee el entorno
+  config.py         # carga el .env y expone la configuración (incluye CORS_ORIGINS); único lugar que lee el entorno
   .env.example      # plantilla de variables (el .env real está en .gitignore)
   database.py       # engine async, init_db(), get_session()
   security.py       # crear_token_acceso(), decodificar_token(), oauth2_scheme
@@ -138,13 +144,17 @@ Ordenada por impacto en la nota:
 1. **Frontend sin implementar**: `src/App.jsx` es la plantilla de Vite. No hay login, listado, formulario ni cliente HTTP hacia la API. Es el mayor riesgo para la nota (requisito 4: tope de 3,9 si el proyecto no funciona).
 2. ~~`POST /api/suscripciones/` recibe `usuario_id` en el body~~ — **corregido** (rama `fix-bugs`): el DTO ya no acepta `usuario_id`; se deriva siempre del token vía `dependencies.obtener_usuario_actual`, igual que `/listar` y `/resumen`.
 3. **Tests sin aislamiento**: `conftest.py` usa la base de datos real y los tests evitan colisiones con `int(time.time())` en los emails. Además, los tests de conversión golpean la API externa real, así que el CI depende de la red.
-4. **`/api/suscripciones/resumen` suma también las desactivadas**: `calcular_gasto_total` usa `obtener_suscripciones_por_usuario`, que no filtra por `activa`. Una suscripción cancelada sigue contando en el gasto mensual. El módulo de alertas sí filtra correctamente; falta alinear el resumen (y decidir si `/listar` debe seguir mostrando todas).
-5. **Sin auto-deploy** en el pipeline (deseable según el PDF).
+4. ~~`/api/suscripciones/resumen` suma también las desactivadas~~ — **corregido** (rama `fixes-backend`): `obtener_suscripciones_por_usuario` acepta `solo_activas` y `calcular_gasto_total` la usa. `/listar` sigue devolviendo todas, a propósito, para que el frontend muestre el historial.
+5. **Sin auto-deploy** en el pipeline (deseable según el PDF). Al montarlo, ojo con dos cosas: `SECRET_KEY` y `DATABASE_URL` deben venir de GitHub Secrets (los del `env:` de `ci.yml` son desechables, solo para los tests), y **`CORS_ORIGINS` debe apuntar a la URL pública del frontend**. Como esa variable tiene valor por defecto en `config.py`, si se olvida el backend arranca igual y el fallo solo se ve en la consola del navegador; ahí habrá que decidir si conviene quitarle el default para que falle ruidosamente.
 6. **`backend/.coverage` está versionado**: es un artefacto binario de `pytest-cov`, debería ir al `.gitignore` y salir del índice.
 7. El README declara "React (TypeScript)" pero los archivos del frontend son `.jsx`.
-8. El coverage reportado (85%) incluye los propios archivos de test; sin ellos queda en ~80%. Se puede afinar con un `.coveragerc` que los excluya.
+8. El coverage reportado (98%) incluye los propios archivos de test, que siempre dan 100%; sin ellos el número real es más bajo. Se puede afinar con un `.coveragerc` que los excluya.
 9. ~~`security.py` capturaba `except jwt.JWTError`~~ — **corregido** (rama `fix-bugs`): esa excepción no existe en PyJWT (es de `python-jose`), así que un token malformado no expirado producía un `AttributeError` no capturado → 500 en vez de 401. Ahora captura `jwt.PyJWTError`.
 10. Contraseñas con SHA-256 sin salt (`usuarios/services.py`), comparación no constant-time. Conocido, fuera de alcance de `fix-bugs` — requiere migrar a una librería tipo `passlib`/`bcrypt`, cambio más grande.
+11. ~~`/resumen` sumaba las suscripciones anuales completas al total **mensual**~~ — **corregido** (rama `fixes-backend-2te2vt`): una anual de 120.000 se contaba como 120.000/mes. Ahora se prorratea con `monto_mensual()`. Cubierto por `test_resumen_prorratea_las_anuales`.
+12. ~~`convertir_moneda` no capturaba `httpx.HTTPStatusError`~~ — **corregido** (rama `fixes-backend-2te2vt`): `raise_for_status()` lanza esa excepción, que **no** es subclase de `RequestError` (ambas cuelgan de `httpx.HTTPError`), así que un error HTTP de la API se escapaba y el backend devolvía 500. De paso rompía la resiliencia de las alertas, porque `alertas/_convertir_monto` solo atrapa `HTTPException`.
+13. **Una llamada HTTP por suscripción** en `calcular_gasto_total` y en las alertas: si el usuario tiene 10 suscripciones en USD se piden 10 veces la misma tasa, en serie y sin caché. Con pocos datos no se nota, pero es la optimización obvia (agrupar por moneda o pedir las tasas de la moneda destino una sola vez).
+14. **Registro con condición de carrera**: `crear_usuario` consulta y después inserta, sin capturar `IntegrityError`. Dos registros simultáneos con el mismo email dan 500 en vez de 400. La restricción `unique` de la BD igual protege el dato.
 
 ---
 
@@ -155,3 +165,4 @@ Ordenada por impacto en la nota:
 - Si se agrega un módulo de dominio, agregar sus tests en `backend/tests/` — el coverage mínimo es parte de la nota.
 - No introducir dependencias fuera del stack de la sección 3.
 - **Nada de credenciales ni URLs en el código**: toda configuración pasa por `config.py`. Al agregar una variable, sumarla a `.env.example` y al bloque `env:` de [ci.yml](.github/workflows/ci.yml), o el pipeline se cae.
+- **Autoría de los commits**: `.claude/settings.json` deja `attribution` en vacío, así que los commits no llevan líneas de `Co-Authored-By` ni de sesión. Eso no cubre el campo `author` de git, que sale de la config del entorno: en una sesión en la nube el contenedor arranca con la identidad de Claude, así que **antes del primer commit** hay que fijarla con `git config user.name "Vicente Ruiz Escobar"` y `git config user.email "greatdazz3@gmail.com"` (no se versiona, se pierde con el contenedor).

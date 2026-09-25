@@ -26,3 +26,11 @@ DATABASE_URL = _obtener_variable(
 SECRET_KEY = _obtener_variable("SECRET_KEY")
 ALGORITHM = _obtener_variable("ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(_obtener_variable("ACCESS_TOKEN_EXPIRE_MINUTES", "60"))
+
+# Orígenes que el navegador puede usar para llamar a la API, separados por coma.
+# El default es el puerto por defecto de Vite en desarrollo.
+CORS_ORIGINS = [
+    origen.strip()
+    for origen in _obtener_variable("CORS_ORIGINS", "http://localhost:5173").split(",")
+    if origen.strip()
+]
