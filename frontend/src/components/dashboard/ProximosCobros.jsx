@@ -1,3 +1,12 @@
+function formatearMonto(valor, moneda = "CLP") {
+  return new Intl.NumberFormat("es-CL", {
+    style: "currency",
+    currency: moneda,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(valor);
+}
+
 function textoDias(item) {
   if (item.vencida) {
     const dias = Math.abs(item.diffDays);
@@ -7,7 +16,13 @@ function textoDias(item) {
   return item.diffDays === 1 ? "Mañana" : `En ${item.diffDays} días`;
 }
 
-function ProximosCobros({ upcomingCharges, diasAlerta = 7, renovarCobro }) {
+function ProximosCobros({
+  upcomingCharges,
+  totalVentana = 0,
+  ventanaParcial = false,
+  diasAlerta = 7,
+  renovarCobro,
+}) {
   return (
     <div className="rounded-2xl bg-secundario/20 p-5 shadow-lg">
       <div className="mb-5 flex items-center justify-between">
@@ -46,7 +61,7 @@ function ProximosCobros({ upcomingCharges, diasAlerta = 7, renovarCobro }) {
                 </div>
                 <div className="text-right">
                   <p className={`font-semibold ${item.vencida ? "text-red-300" : "text-acento"}`}>
-                    {item.amount} {item.currency}
+                    {formatearMonto(item.amount, item.currency)}
                   </p>
                   <p className="text-xs text-texto-dim">{textoDias(item)}</p>
                 </div>
@@ -65,6 +80,24 @@ function ProximosCobros({ upcomingCharges, diasAlerta = 7, renovarCobro }) {
           ))
         )}
       </div>
+
+      {/* El total suma exactamente los cobros listados arriba, a monto completo.
+          No se muestra con la lista vacía: ahí ya está el mensaje correspondiente. */}
+      {upcomingCharges.length > 0 && (
+        <div className="mt-5 border-t border-texto-dim/20 pt-4">
+          <div className="flex items-baseline justify-between">
+            <span className="text-sm text-texto">Total del período</span>
+            <span className="text-xl font-bold text-primario">
+              {formatearMonto(totalVentana)}
+            </span>
+          </div>
+          {ventanaParcial && (
+            <p className="mt-1 text-right text-xs text-texto-dim">
+              no incluye los cobros sin conversión
+            </p>
+          )}
+        </div>
+      )}
     </div>
   )
 }

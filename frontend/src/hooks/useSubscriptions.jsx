@@ -147,6 +147,23 @@ export function useSubscriptions() {
     );
   }, [activeSubscriptions]);
 
+  // Lo que se cobra dentro de la ventana de alertas, a monto completo. A diferencia
+  // del gasto mensual, acá una anual entra por sus 120.000 y no por su doceava parte:
+  // responde "cuánta plata sale de la cuenta estos días", no "cuánto cuesta al mes".
+  // Suma todo lo que la tarjeta lista, incluidas las vencidas, para que el total
+  // siempre cuadre con lo que el usuario tiene a la vista.
+  const totalVentana = useMemo(
+    () => Math.round(alertas.reduce((total, a) => total + Number(a.amountClp || 0), 0)),
+    [alertas],
+  );
+
+  // El backend entrega la alerta con monto_convertido en null cuando la API de divisas
+  // falla. Sin avisarlo, el total se vería completo cuando en realidad le falta un cobro.
+  const ventanaParcial = useMemo(
+    () => alertas.some((a) => a.amountClp == null),
+    [alertas],
+  );
+
   const handleChange = (event) => {
     const { name, value } = event.target;
     setForm((current) => ({ ...current, [name]: value }));
@@ -226,6 +243,8 @@ export function useSubscriptions() {
     totalMonthlySpend: totalMensual,
     pendienteEsteMes,
     upcomingCharges: alertas,
+    totalVentana,
+    ventanaParcial,
     diasAlerta: DIAS_ALERTA,
     handleChange,
     handleSubmit,

@@ -15,6 +15,8 @@ function Dashboard() {
     pendienteEsteMes,
     activeSubscriptions,
     upcomingCharges,
+    totalVentana,
+    ventanaParcial,
     diasAlerta,
     subscriptions,
     form,
@@ -65,6 +67,8 @@ function Dashboard() {
             <GraphCard subscriptions={activeSubscriptions}/>
             <ProximosCobros
               upcomingCharges={upcomingCharges}
+              totalVentana={totalVentana}
+              ventanaParcial={ventanaParcial}
               diasAlerta={diasAlerta}
               renovarCobro={renovarCobro}
             />
