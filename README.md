@@ -13,6 +13,9 @@ Mini app-web monolítica que permite gestionar suscripciones a distintos servici
 3. **Sistema de Alertas de Cobro:**
    Informa qué suscripciones se cobran dentro de una ventana configurable de días (por defecto 7, hacia adelante y hacia atrás), indicando cuántos días faltan, el monto convertido a la moneda elegida y si el cobro ya venció. Las alertas se calculan al momento de la consulta a partir de la fecha de próximo cobro, y tras un cobro la suscripción se pone al día con el endpoint de renovación, que avanza la fecha un ciclo según su periodicidad (mensual o anual).
 
+4. **Interfaz web:**
+   Aplicación React que consume la API por REST. Incluye registro e inicio de sesión, un dashboard con el gasto mensual y la distribución por servicio, el ciclo completo de gestión de suscripciones y el panel de próximos cobros. La sesión se cierra sola y redirige al login cuando el token expira.
+
 ## Stack Tecnológico
 
 * **Frameworks:** FastAPI (Python), React sobre Vite (JavaScript / JSX)
@@ -90,6 +93,39 @@ python -c "import secrets; print(secrets.token_hex(32))"
 uvicorn main:app --reload
 ```
 La API quedará disponible en http://127.0.0.1:8000.
+
+> **Importante:** el backend puede levantarse de dos formas, y ambas ocupan el puerto 8000. Para desarrollar, usa `docker compose up -d db` (solo la base de datos) y luego uvicorn. Si levantas el stack completo con `docker compose up -d`, el contenedor `backend` toma el puerto y sirve la última imagen construida, no tu código actual: en ese caso reconstruye con `docker compose up -d --build`.
+
+## Frontend
+
+El frontend es una app React que consume la API. Necesita el backend corriendo.
+
+### 1. **Instalar dependencias:**
+```bash
+cd frontend
+npm install
+```
+
+### 2. **Variables de entorno:**
+```bash
+cp .env.example .env
+```
+```bash
+VITE_API_URL=http://127.0.0.1:8000
+```
+Es la URL del backend. Si apunta a otro lado, el navegador recibirá errores de CORS salvo que esa dirección esté en `CORS_ORIGINS` del backend.
+
+### 3. **Iniciar:**
+```bash
+npm run dev
+```
+La app queda en http://localhost:5173.
+
+### Qué incluye
+
+Registro e inicio de sesión con JWT, dashboard con el gasto mensual consolidado y la distribución por servicio, formulario para crear y editar suscripciones, activación y desactivación, y un panel de próximos cobros con un botón para registrar que ya te cobraron, que avanza la fecha un ciclo.
+
+El gasto mensual y los próximos cobros se piden al backend (`/resumen` y `/alertas/proximas`) en lugar de calcularse en el navegador, para que la cifra que ve el usuario sea siempre la misma que entrega la API.
 
 ## Endpoints
 

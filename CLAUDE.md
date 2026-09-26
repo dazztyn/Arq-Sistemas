@@ -13,11 +13,11 @@ Son requisitos de **nota**, no opcionales. Antes de dar por cerrada una entrega,
 |:--|:---|:---|
 | 1 | Arquitectura **monolito**: un frontend + un backend, comunicados por REST, GraphQL o WebSockets (se pueden combinar) | ✅ Frontend React + backend FastAPI vía **REST** |
 | 2 | **Backend dockerizado** | ✅ `backend/Dockerfile` + servicio `backend` en `docker-compose.yml`; el CI construye la imagen |
-| 3 | **Coverage del backend ≥ 60%** | ✅ 98% (23-09-2026, 31 tests), con `--cov-fail-under=60` exigido en el CI |
-| 4 | El proyecto debe funcionar **100%** según lo inscrito con el profesor (si no, nota máxima 3,9) | ⚠️ Frontend sigue siendo el boilerplate de Vite |
+| 3 | **Coverage del backend ≥ 60%** | ✅ 34 tests. El CI reporta 86% (incluye los archivos de test); medido solo sobre el código fuente es 96%. Ver deuda #8 |
+| 4 | El proyecto debe funcionar **100%** según lo inscrito con el profesor (si no, nota máxima 3,9) | ✅ Frontend implementado e integrado con la API: login, dashboard, CRUD, alertas y renovación |
 | 5 | Respetar el **stack tecnológico inscrito** | ✅ Ver sección 3 |
-| 6 | **Pipeline en GitHub Actions** que como mínimo ejecute los tests (deseable: auto-deploy a un servicio gratuito) | ⚠️ CI corre lint, tests con coverage y build de la imagen; falta el auto-deploy |
-| 7 | **Material visual** para la presentación (temática, solución, diagramas) | ❌ Pendiente |
+| 6 | **Pipeline en GitHub Actions** que como mínimo ejecute los tests (deseable: auto-deploy a un servicio gratuito) | ⚠️ CI corre lint, tests con coverage y build de la imagen. El CD a Railway está escrito en `.github/workflows/cd-railway.yml.ejemplo` pero todavía inactivo |
+| 7 | **Material visual** para la presentación (temática, solución, diagramas) | ⚠️ En curso: presentación en Canva (portada, problemática, stack, arquitectura, módulos, demo). Faltan las capturas del pipeline y del stack dockerizado |
 
 **Regla práctica:** cualquier cambio que rompa 2, 3 o 6 bloquea la entrega. Priorizar siempre esos sobre features nuevas.
 
@@ -65,6 +65,15 @@ La app permite **controlar gastos recurrentes en suscripciones**, unificando mon
 | `GET` | `/api/conversion/` | Conversión puntual de un monto | No |
 | `GET` | `/` | Health check | No |
 
+### 2.5 Cómo el frontend consume la API
+
+- **El token.** `login()` (en `utils/AuthContext.jsx`) pide el token a `/login`, luego el perfil, y guarda ambos en `localStorage` **y en el estado de React**. El estado es la fuente de verdad mientras la app corre: así, al cerrar sesión, todos los componentes se enteran en el mismo render. El token se toma siempre de `useAuth()`, nunca leyendo `localStorage` desde un componente.
+- **El 401 no es un error más.** `solicitar()` lo convierte en `SesionExpirada`; el hook cierra la sesión y redirige a `/login` con el motivo. Sin eso, al expirar el token (60 min) la app queda rota hasta que alguien recargue.
+- **El dashboard no recalcula lo que ya calcula la API.** El total sale de `/resumen` y los próximos cobros de `/alertas/proximas`. Si se replicaran en el cliente, mostrarían números distintos a los de la API — pasó con el prorrateo de las anuales.
+- **Las tres lecturas van con `Promise.allSettled`, no con `all`.** El resumen y las alertas dependen de la API externa de divisas; con `all`, una caída de ese servicio dejaba al usuario sin ver **ninguna** suscripción, aunque el listado no la necesite. Si el total no se puede calcular se muestra un guion, no un cero: un cero se leería como "no gastas nada".
+- **La conversión se pide una vez por moneda distinta**, no una por suscripción, y se multiplica en el cliente. La tasa se pide con un monto base alto porque el backend redondea a 2 decimales.
+- **Fechas.** Se usa el string `YYYY-MM-DD` del backend tal cual, sin pasar por `toISOString()`, que según la zona horaria devuelve el día anterior.
+
 ---
 
 ## 3. Stack tecnológico inscrito
@@ -97,12 +106,24 @@ backend/
   conversion/       # router.py + services.py (API externa de divisas)
   alertas/          # router.py + services.py (solo lectura: cobros próximos y vencidos)
   tests/            # conftest.py + tests por módulo
-frontend/           # React + Vite
-.github/workflows/  # ci.yml
-docker-compose.yml  # Postgres + pgAdmin
+frontend/
+  .env.example      # VITE_API_URL: URL del backend
+  src/
+    main.jsx        # monta BrowserRouter + AuthProvider
+    App.jsx         # rutas; /dashboard va envuelta en ProtectedRoute
+    pages/          # Landing, Login, Register, Dashboard, NotFound
+    components/     # Navbar + dashboard/ (CifraCard, GraphCard, ListaSuscripcion,
+                    #   FormularioSuscripcion, ProximosCobros)
+    hooks/          # useSubscriptions.jsx: carga los datos y expone las acciones
+    services/       # Auth.service.ts y Subscripciones.service.ts: única capa que hace fetch
+    utils/          # AuthProvider.js (contexto), AuthContext.jsx (provider), useAuth, ProtectedRoute
+.github/workflows/  # ci.yml + cd-railway.yml.ejemplo (borrador del CD, inactivo)
+docker-compose.yml  # Postgres + backend + pgAdmin
 ```
 
-**Convención:** cada módulo de dominio es una carpeta con `router.py` (endpoints y DTOs) y `services.py` (lógica + acceso a datos). Mantenerla al agregar features nuevas — el router no debe consultar la base de datos directamente.
+**Convención (backend):** cada módulo de dominio es una carpeta con `router.py` (endpoints y DTOs) y `services.py` (lógica + acceso a datos). Mantenerla al agregar features nuevas — el router no debe consultar la base de datos directamente.
+
+**Convención (frontend):** ningún componente llama a `fetch` directamente. Todo pasa por `services/`, y los componentes reciben los datos del hook `useSubscriptions`. Es el equivalente de la separación router/services del backend.
 
 Código, comentarios, nombres de variables y mensajes de error **en español**.
 
@@ -141,20 +162,23 @@ Los tests levantan la app real contra la base de datos definida en `DATABASE_URL
 
 Ordenada por impacto en la nota:
 
-1. **Frontend sin implementar**: `src/App.jsx` es la plantilla de Vite. No hay login, listado, formulario ni cliente HTTP hacia la API. Es el mayor riesgo para la nota (requisito 4: tope de 3,9 si el proyecto no funciona).
+1. ~~**Frontend sin implementar**~~ — **resuelto** (rama `integracion-front`): la app tiene login, registro, dashboard, CRUD completo, alertas y renovación, conectada a la API. Verificado de punta a punta en navegador: el total del dashboard coincide con el de `/resumen`.
 2. ~~`POST /api/suscripciones/` recibe `usuario_id` en el body~~ — **corregido** (rama `fix-bugs`): el DTO ya no acepta `usuario_id`; se deriva siempre del token vía `dependencies.obtener_usuario_actual`, igual que `/listar` y `/resumen`.
 3. **Tests sin aislamiento**: `conftest.py` usa la base de datos real y los tests evitan colisiones con `int(time.time())` en los emails. Además, los tests de conversión golpean la API externa real, así que el CI depende de la red.
 4. ~~`/api/suscripciones/resumen` suma también las desactivadas~~ — **corregido** (rama `fixes-backend`): `obtener_suscripciones_por_usuario` acepta `solo_activas` y `calcular_gasto_total` la usa. `/listar` sigue devolviendo todas, a propósito, para que el frontend muestre el historial.
 5. **Sin auto-deploy** en el pipeline (deseable según el PDF). Al montarlo, ojo con dos cosas: `SECRET_KEY` y `DATABASE_URL` deben venir de GitHub Secrets (los del `env:` de `ci.yml` son desechables, solo para los tests), y **`CORS_ORIGINS` debe apuntar a la URL pública del frontend**. Como esa variable tiene valor por defecto en `config.py`, si se olvida el backend arranca igual y el fallo solo se ve en la consola del navegador; ahí habrá que decidir si conviene quitarle el default para que falle ruidosamente.
 6. **`backend/.coverage` está versionado**: es un artefacto binario de `pytest-cov`, debería ir al `.gitignore` y salir del índice.
-7. El README declara "React (TypeScript)" pero los archivos del frontend son `.jsx`.
-8. El coverage reportado (98%) incluye los propios archivos de test, que siempre dan 100%; sin ellos el número real es más bajo. Se puede afinar con un `.coveragerc` que los excluya.
+7. ~~El README declara "React (TypeScript)" pero los archivos del frontend son `.jsx`~~ — **corregido**: el README ya dice "React sobre Vite (JavaScript / JSX)". Quedan 2 archivos `.ts` en `services/`, el resto es `.jsx`.
+8. **El coverage está mal medido, en las dos direcciones.** El 86% que reporta el CI incluye los propios archivos de test, que siempre dan 100%. Pero medirlo solo sobre el código fuente da 76%, que **también es falso**: SQLAlchemy async ejecuta el trabajo de BD dentro de greenlets y `coverage` no traza ahí sin configurarlo. El número real es **96%**. Se arregla con un `.coveragerc` que tenga `omit = */tests/*` **y** `concurrency = thread,greenlet`.
 9. ~~`security.py` capturaba `except jwt.JWTError`~~ — **corregido** (rama `fix-bugs`): esa excepción no existe en PyJWT (es de `python-jose`), así que un token malformado no expirado producía un `AttributeError` no capturado → 500 en vez de 401. Ahora captura `jwt.PyJWTError`.
 10. Contraseñas con SHA-256 sin salt (`usuarios/services.py`), comparación no constant-time. Conocido, fuera de alcance de `fix-bugs` — requiere migrar a una librería tipo `passlib`/`bcrypt`, cambio más grande.
 11. ~~`/resumen` sumaba las suscripciones anuales completas al total **mensual**~~ — **corregido** (rama `fixes-backend-2te2vt`): una anual de 120.000 se contaba como 120.000/mes. Ahora se prorratea con `monto_mensual()`. Cubierto por `test_resumen_prorratea_las_anuales`.
 12. ~~`convertir_moneda` no capturaba `httpx.HTTPStatusError`~~ — **corregido** (rama `fixes-backend-2te2vt`): `raise_for_status()` lanza esa excepción, que **no** es subclase de `RequestError` (ambas cuelgan de `httpx.HTTPError`), así que un error HTTP de la API se escapaba y el backend devolvía 500. De paso rompía la resiliencia de las alertas, porque `alertas/_convertir_monto` solo atrapa `HTTPException`.
 13. **Una llamada HTTP por suscripción** en `calcular_gasto_total` y en las alertas: si el usuario tiene 10 suscripciones en USD se piden 10 veces la misma tasa, en serie y sin caché. Con pocos datos no se nota, pero es la optimización obvia (agrupar por moneda o pedir las tasas de la moneda destino una sola vez).
 14. **Registro con condición de carrera**: `crear_usuario` consulta y después inserta, sin capturar `IntegrityError`. Dos registros simultáneos con el mismo email dan 500 en vez de 400. La restricción `unique` de la BD igual protege el dato.
+15. **El token se guarda en `localStorage`**, así que queda expuesto a XSS. Aceptable para el alcance del ramo; la alternativa sería una cookie `httpOnly`, que obliga a habilitar credenciales en CORS y cambia el flujo de auth completo.
+16. **Nombres invertidos en `frontend/src/utils/`**: `AuthProvider.js` define el *contexto* y `AuthContext.jsx` define el *provider*. Confunde al leerlo; renombrarlos es un cambio mecánico que se evitó para no ensuciar el diff de la integración.
+17. **El frontend no tiene tests.** El coverage que exige la pauta es solo del backend, así que no afecta la nota, pero la lógica de `useSubscriptions` (prorrateo mostrado, ventana de alertas, manejo del 401) no tiene red de seguridad.
 
 ---
 
